@@ -83,11 +83,24 @@ export class FilesTool {
         return client.files.getObject(params.fileId, params.pageId, params.objectId);
 
       case 'tree':
-        if (!params.fileId || !params.objectId) {
-          return ResponseFormatter.formatError('fileId and objectId are required for tree action');
+        if (!params.fileId) {
+          return ResponseFormatter.formatError('fileId is required for tree action');
         }
-        // getObjectTree(fileId, objectId, fields?, depth?)
-        return client.files.getObjectTree(params.fileId, params.objectId, undefined, params.depth);
+        // If objectId is provided, get object tree; otherwise get page tree
+        if (params.objectId) {
+          return client.files.getObjectTree(
+            params.fileId,
+            params.objectId,
+            undefined,
+            params.depth
+          );
+        } else if (params.pageId) {
+          return client.files.getPageTree(params.fileId, params.pageId, undefined, params.depth);
+        } else {
+          return ResponseFormatter.formatError(
+            'Either pageId or objectId is required for tree action'
+          );
+        }
 
       case 'search':
         if (!params.fileId || !params.query) {

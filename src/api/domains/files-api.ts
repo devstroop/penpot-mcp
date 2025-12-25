@@ -298,7 +298,12 @@ export class FilesAPIClient extends BaseAPIClient {
         return ResponseFormatter.formatError(`Page not found: ${pageId}`);
       }
 
-      const obj = page.objects?.[objectId];
+      // Try multiple key formats for objectId: raw, with ~u prefix, without prefix
+      const cleanObjectId = objectId.startsWith('~u') ? objectId.slice(2) : objectId;
+      const obj =
+        page.objects?.[objectId] ||
+        page.objects?.[`~u${cleanObjectId}`] ||
+        page.objects?.[cleanObjectId];
 
       if (!obj) {
         return ResponseFormatter.formatError(`Object not found: ${objectId}`);
@@ -307,6 +312,111 @@ export class FilesAPIClient extends BaseAPIClient {
       return ResponseFormatter.formatSuccess(obj, `Object: ${obj.name}`);
     } catch (error) {
       return ErrorHandler.handle(error, `getObject(${fileId}, ${pageId}, ${objectId})`);
+    }
+  }
+
+  /**
+   * Get page tree (all objects on a page in hierarchical format)
+   */
+  async getPageTree(
+    fileId: string,
+    pageId: string,
+    fields?: string[],
+    depth: number = -1
+  ): Promise<MCPResponse> {
+    try {
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
+
+      const fileData = this.normalizeTransitResponse(response) as FileData;
+      const pagesIndex = fileData.data?.['pages-index'] || {};
+
+      // Try multiple key formats: raw, with ~u prefix, without prefix
+      const cleanPageId = pageId.startsWith('~u') ? pageId.slice(2) : pageId;
+      const page = pagesIndex[pageId] || pagesIndex[`~u${cleanPageId}`] || pagesIndex[cleanPageId];
+
+      if (!page) {
+        return ResponseFormatter.formatError(`Page not found: ${pageId}`);
+      }
+
+      const objects = page.objects || {};
+      const visited = new Set<string>();
+
+      // Find the root object (typically 00000000-0000-0000-0000-000000000000)
+      const rootId =
+        Object.keys(objects).find((id) => {
+          const cleanId = id.startsWith('~u') ? id.slice(2) : id;
+          return cleanId === '00000000-0000-0000-0000-000000000000';
+        }) || Object.keys(objects)[0];
+
+      // Build filtered object tree
+      const buildTree = (objId: string, currentDepth: number): Record<string, unknown> | null => {
+        if (!(objId in objects) || visited.has(objId)) {
+          return null;
+        }
+
+        visited.add(objId);
+
+        const obj = objects[objId] as ObjectData;
+        let filteredObj: Record<string, unknown>;
+
+        if (fields && fields.length > 0) {
+          filteredObj = { id: objId };
+          for (const field of fields) {
+            if (field in obj) {
+              filteredObj[field] = obj[field];
+            }
+          }
+        } else {
+          filteredObj = { ...obj, id: objId };
+        }
+
+        // Stop at depth limit
+        if (depth !== -1 && currentDepth >= depth) {
+          visited.delete(objId);
+          return filteredObj;
+        }
+
+        // Find children
+        const children: Record<string, unknown>[] = [];
+        for (const [childId, childObj] of Object.entries(objects)) {
+          const child = childObj as ObjectData;
+          // Check if parentId matches (with or without ~u prefix)
+          const cleanObjId = objId.startsWith('~u') ? objId.slice(2) : objId;
+          const parentId = typeof child.parentId === 'string' ? child.parentId : '';
+          const cleanParentId = parentId.startsWith('~u') ? parentId.slice(2) : parentId;
+
+          if (cleanParentId === cleanObjId || parentId === objId) {
+            const childTree = buildTree(childId, currentDepth + 1);
+            if (childTree) {
+              children.push(childTree);
+            }
+          }
+        }
+
+        if (children.length > 0) {
+          filteredObj.children = children;
+        }
+
+        visited.delete(objId);
+        return filteredObj;
+      };
+
+      const tree = buildTree(rootId, 0);
+
+      if (!tree) {
+        return ResponseFormatter.formatError(`Failed to build tree for page ${pageId}`);
+      }
+
+      return ResponseFormatter.formatSuccess(
+        {
+          tree,
+          pageId,
+          pageName: page.name,
+        },
+        `Page tree for ${page.name}`
+      );
+    } catch (error) {
+      return ErrorHandler.handle(error, `getPageTree(${fileId}, ${pageId})`);
     }
   }
 
