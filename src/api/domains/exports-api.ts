@@ -932,6 +932,14 @@ export class ExportsAPIClient extends BaseAPIClient {
       // Find the object to preview
       let targetObjectId = objectId;
       let targetObject: Record<string, unknown> | undefined;
+      let allTopLevelFrames: Array<{
+        id: string;
+        name: string | undefined;
+        size: string;
+        width: number;
+        height: number;
+        obj: Record<string, unknown>;
+      }> = [];
 
       if (objectId) {
         // Use the specified object - try both with and without ~u prefix
@@ -942,35 +950,185 @@ export class ExportsAPIClient extends BaseAPIClient {
           return ResponseFormatter.formatError(`Object not found: ${objectId}`);
         }
       } else {
-        // Find the best frame to preview (first frame, or largest)
-        const frames = Object.entries(page.objects || {})
-          .filter(([, obj]) => {
-            const o = obj as Record<string, unknown>;
-            return o['type'] === 'frame' && !o['hidden'];
+        // Auto-select: find top-level frames (direct children of root frame)
+        // Objects are in transit tagged array format: ["~#shape", {...actual data...}]
+        const ROOT_FRAME_ID = '00000000-0000-0000-0000-000000000000';
+        const ROOT_FRAME_UUID = `~u${ROOT_FRAME_ID}`;
+
+        const candidates = Object.entries(page.objects || {})
+          .filter(([id]) => {
+            // Skip the root frame itself
+            const cleanId = id.startsWith('~u') ? id.slice(2) : id;
+            return cleanId !== ROOT_FRAME_ID;
           })
           .map(([id, obj]) => {
-            const o = obj as Record<string, unknown>;
-            const width = (o['width'] as number) || 0;
-            const height = (o['height'] as number) || 0;
-            // Remove ~u prefix from id if present
-            const cleanId = id.startsWith('~u') ? id.slice(2) : id;
-            return { id: cleanId, width, height, area: width * height, obj: o };
-          })
-          .sort((a, b) => b.area - a.area); // Sort by area, largest first
+            // Handle transit tagged array format
+            const o =
+              Array.isArray(obj) && obj.length === 2 && typeof obj[1] === 'object'
+                ? (obj[1] as Record<string, unknown>)
+                : (obj as Record<string, unknown>);
 
-        if (frames.length > 0) {
-          targetObjectId = frames[0].id;
-          targetObject = frames[0].obj;
+            const width = ((o['width'] || o['~:width']) as number) || 0;
+            const height = ((o['height'] || o['~:height']) as number) || 0;
+            const hidden = !!(o['hidden'] || o['~:hidden']);
+            const name = (o['name'] || o['~:name']) as string | undefined;
+            const cleanId = id.startsWith('~u') ? id.slice(2) : id;
+
+            // Check if parent is root frame - look through all values for root frame reference
+            // Transit caches keys like 'parent-id' as '^11', so we check values instead
+            let isTopLevel = false;
+            for (const val of Object.values(o)) {
+              if (val === ROOT_FRAME_ID || val === ROOT_FRAME_UUID) {
+                isTopLevel = true;
+                break;
+              }
+            }
+
+            return {
+              id: cleanId,
+              width,
+              height,
+              area: width * height,
+              hidden,
+              name,
+              obj: o,
+              isTopLevel,
+            };
+          })
+          // Filter for top-level frames with reasonable size
+          .filter((item) => item.isTopLevel && item.width >= 50 && item.height >= 50)
+          // Sort: non-hidden first, then by area (largest first)
+          .sort((a, b) => {
+            if (a.hidden !== b.hidden) return a.hidden ? 1 : -1;
+            return b.area - a.area;
+          });
+
+        if (candidates.length > 0) {
+          // Store all frames for multi-export
+          allTopLevelFrames = candidates.map((c) => ({
+            id: c.id,
+            name: c.name,
+            size: `${Math.round(c.width)}x${Math.round(c.height)}`,
+            width: c.width,
+            height: c.height,
+            obj: c.obj,
+          }));
+          // For single object reference (backwards compat)
+          targetObjectId = candidates[0].id;
+          targetObject = candidates[0].obj;
         }
       }
 
       if (!targetObjectId || !targetObject) {
         return ResponseFormatter.formatError(
-          'No suitable object found for preview. Try specifying an objectId.'
+          'No top-level frames found to preview. The page may be empty.'
         );
       }
 
-      // Calculate scale based on quality and size constraints
+      const exportUrl = `${this.config.baseURL}/export`;
+
+      // If multiple frames and no specific objectId requested, export ALL frames
+      if (!objectId && allTopLevelFrames.length > 1) {
+        const images: Array<{ base64Data: string; mimeType: string; label?: string }> = [];
+        const frameDetails: Array<{
+          id: string;
+          name: string | undefined;
+          size: string;
+          sizeKB: number;
+        }> = [];
+
+        for (const frame of allTopLevelFrames) {
+          try {
+            // Calculate scale for this frame
+            const frameWidth = frame.width || maxWidth;
+            const frameHeight = frame.height || maxHeight;
+            let frameScale: number;
+            switch (quality) {
+              case 'low':
+                frameScale = Math.min(0.5, maxWidth / frameWidth, maxHeight / frameHeight);
+                break;
+              case 'high':
+                frameScale = Math.min(2, maxWidth / frameWidth, maxHeight / frameHeight);
+                break;
+              default:
+                frameScale = Math.min(1, maxWidth / frameWidth, maxHeight / frameHeight);
+            }
+            frameScale = Math.max(0.1, frameScale);
+
+            const payload = {
+              '~:wait': true,
+              '~:exports': [
+                {
+                  '~:type': '~:png',
+                  '~:suffix': '',
+                  '~:scale': frameScale,
+                  '~:page-id': `~u${pageId}`,
+                  '~:file-id': `~u${fileId}`,
+                  '~:name': '',
+                  '~:object-id': `~u${frame.id}`,
+                },
+              ],
+              '~:profile-id': `~u${profileId}`,
+              '~:cmd': '~:export-shapes',
+            };
+
+            const exportResponse = await axios.post(exportUrl, payload, {
+              headers: {
+                'Content-Type': 'application/transit+json',
+                Accept: 'application/transit+json',
+                Cookie: `auth-token=${authToken}`,
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+              },
+            });
+
+            const resourceId = exportResponse.data['~:id'];
+            if (resourceId) {
+              const resourcePayload = {
+                '~:wait': false,
+                '~:cmd': '~:get-resource',
+                '~:id': resourceId,
+              };
+
+              const resourceResponse = await axios.post(exportUrl, resourcePayload, {
+                headers: {
+                  'Content-Type': 'application/transit+json',
+                  Accept: '*/*',
+                  Cookie: `auth-token=${authToken}`,
+                  'User-Agent':
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                },
+                responseType: 'arraybuffer',
+              });
+
+              const base64Data = Buffer.from(resourceResponse.data).toString('base64');
+              images.push({ base64Data, mimeType: 'image/png', label: frame.name });
+              frameDetails.push({
+                id: frame.id,
+                name: frame.name,
+                size: frame.size,
+                sizeKB: Math.round(resourceResponse.data.length / 1024),
+              });
+            }
+          } catch (err) {
+            logger.error(`Failed to export frame ${frame.name}`, err);
+          }
+        }
+
+        if (images.length === 0) {
+          return ResponseFormatter.formatError('Failed to export any frames.');
+        }
+
+        return ResponseFormatter.formatMultipleImages(images, {
+          fileName,
+          pageName: page.name,
+          totalFrames: images.length,
+          frames: frameDetails,
+          quality,
+          message: `Exported ${images.length} frames from ${fileName}`,
+        });
+      }
+
+      // Single frame export (when objectId specified or only 1 frame exists)
       const objWidth = (targetObject['width'] as number) || maxWidth;
       const objHeight = (targetObject['height'] as number) || maxHeight;
 
@@ -986,9 +1144,6 @@ export class ExportsAPIClient extends BaseAPIClient {
           scale = Math.min(1, maxWidth / objWidth, maxHeight / objHeight);
       }
       scale = Math.max(0.1, scale); // Ensure minimum scale
-
-      // Export the object
-      const exportUrl = `${this.config.baseURL}/export`;
 
       const payload = {
         '~:wait': true,
@@ -1047,19 +1202,16 @@ export class ExportsAPIClient extends BaseAPIClient {
       const base64Data = Buffer.from(resourceResponse.data).toString('base64');
       const sizeKB = Math.round(resourceResponse.data.length / 1024);
 
-      // Return preview as an actual displayable image
+      // Return preview as an actual displayable image (single frame)
       return ResponseFormatter.formatImage(base64Data, 'image/png', {
         fileName: fileName,
         pageName: page.name,
         objectId: targetObjectId,
         objectName: targetObject['name'],
-        objectType: targetObject['type'],
         originalWidth: objWidth,
         originalHeight: objHeight,
         scale,
         quality,
-        outputWidth: Math.round(objWidth * scale),
-        outputHeight: Math.round(objHeight * scale),
         size: resourceResponse.data.length,
         sizeKB,
         message: `Preview: ${targetObject['name'] || 'Untitled'} (${sizeKB}KB)`,

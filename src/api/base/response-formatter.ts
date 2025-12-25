@@ -144,4 +144,33 @@ export class ResponseFormatter {
 
     return { content };
   }
+
+  /**
+   * Format multiple images response
+   * Returns multiple images that can be displayed in chat
+   */
+  static formatMultipleImages(
+    images: Array<{ base64Data: string; mimeType: string; label?: string }>,
+    metadata?: Record<string, unknown>
+  ): MCPResponse {
+    const content: MCPResponse['content'] = [];
+
+    for (const img of images) {
+      content.push({
+        type: 'image',
+        data: img.base64Data,
+        mimeType: img.mimeType,
+      });
+    }
+
+    // Add metadata as text at the end
+    if (metadata) {
+      content.push({
+        type: 'text',
+        text: JSON.stringify({ success: true, metadata }, null, 2),
+      });
+    }
+
+    return { content };
+  }
 }
