@@ -104,6 +104,20 @@ export class ExportsAPIClient extends BaseAPIClient {
   }
 
   /**
+   * Fetch profile ID by calling the profile endpoint
+   */
+  private async fetchProfileId(): Promise<string | null> {
+    try {
+      const response = await this.post<unknown>('/rpc/command/get-profile', {}, false);
+      const data = this.normalizeTransitResponse(response) as { id?: string };
+      return data.id || null;
+    } catch (error) {
+      logger.error('Failed to fetch profile ID', error);
+      return null;
+    }
+  }
+
+  /**
    * Create an export job and get the resource
    */
   async exportObject(params: ExportParams): Promise<MCPResponse> {
@@ -112,11 +126,15 @@ export class ExportsAPIClient extends BaseAPIClient {
     try {
       await this.ensureAuthenticated();
 
-      const profileId = this.getProfileId();
+      let profileId = this.getProfileId();
       if (!profileId) {
-        return ResponseFormatter.formatError(
-          'Profile ID not available. Please authenticate first.'
-        );
+        // Try to fetch profile ID from API
+        profileId = await this.fetchProfileId();
+        if (!profileId) {
+          return ResponseFormatter.formatError(
+            'Profile ID not available. Please authenticate first.'
+          );
+        }
       }
 
       const authToken = this.getAuthToken();
@@ -215,11 +233,15 @@ export class ExportsAPIClient extends BaseAPIClient {
     try {
       await this.ensureAuthenticated();
 
-      const profileId = this.getProfileId();
+      let profileId = this.getProfileId();
       if (!profileId) {
-        return ResponseFormatter.formatError(
-          'Profile ID not available. Please authenticate first.'
-        );
+        // Try to fetch profile ID from API
+        profileId = await this.fetchProfileId();
+        if (!profileId) {
+          return ResponseFormatter.formatError(
+            'Profile ID not available. Please authenticate first.'
+          );
+        }
       }
 
       const authToken = this.getAuthToken();
@@ -840,11 +862,15 @@ export class ExportsAPIClient extends BaseAPIClient {
     try {
       await this.ensureAuthenticated();
 
-      const profileId = this.getProfileId();
+      let profileId = this.getProfileId();
       if (!profileId) {
-        return ResponseFormatter.formatError(
-          'Profile ID not available. Please authenticate first.'
-        );
+        // Try to fetch profile ID from API
+        profileId = await this.fetchProfileId();
+        if (!profileId) {
+          return ResponseFormatter.formatError(
+            'Profile ID not available. Please authenticate first.'
+          );
+        }
       }
 
       const authToken = this.getAuthToken();
@@ -855,8 +881,16 @@ export class ExportsAPIClient extends BaseAPIClient {
       }
 
       // Get file data to find objects
-      const fileResponse = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
+      let fileResponse: unknown;
+      try {
+        fileResponse = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
+      } catch (fetchError) {
+        return ResponseFormatter.formatError(`Failed to fetch file: ${String(fetchError)}`, {
+          fileId,
+        });
+      }
 
+      // Normalize transit response first
       const fileData = this.normalizeTransitResponse(fileResponse) as {
         name?: string;
         data?: {
@@ -867,21 +901,43 @@ export class ExportsAPIClient extends BaseAPIClient {
               objects?: Record<string, unknown>;
             }
           >;
+          'pages-index'?: Record<
+            string,
+            {
+              name?: string;
+              objects?: Record<string, unknown>;
+            }
+          >;
         };
       };
 
-      const page = fileData.data?.pagesIndex?.[pageId];
+      // Try both key formats (the normalizer converts pages-index to pagesIndex)
+      const pagesIndex = fileData.data?.pagesIndex || fileData.data?.['pages-index'];
+      // The page IDs might still have ~u prefix in the keys
+      const page = pagesIndex?.[pageId] || pagesIndex?.[`~u${pageId}`];
+
       if (!page) {
-        return ResponseFormatter.formatError(`Page not found: ${pageId}`);
+        const debugInfo = {
+          hasData: !!fileData.data,
+          dataKeys: fileData.data ? Object.keys(fileData.data).slice(0, 10) : [],
+          hasPagesIndex: !!pagesIndex,
+          pagesIndexKeys: pagesIndex ? Object.keys(pagesIndex).slice(0, 5) : [],
+          requestedPageId: pageId,
+        };
+        return ResponseFormatter.formatError(`Page not found: ${pageId}`, debugInfo);
       }
+
+      const fileName = fileData.name || 'Untitled';
 
       // Find the object to preview
       let targetObjectId = objectId;
       let targetObject: Record<string, unknown> | undefined;
 
       if (objectId) {
-        // Use the specified object
-        targetObject = page.objects?.[objectId] as Record<string, unknown> | undefined;
+        // Use the specified object - try both with and without ~u prefix
+        targetObject = (page.objects?.[objectId] || page.objects?.[`~u${objectId}`]) as
+          | Record<string, unknown>
+          | undefined;
         if (!targetObject) {
           return ResponseFormatter.formatError(`Object not found: ${objectId}`);
         }
@@ -896,7 +952,9 @@ export class ExportsAPIClient extends BaseAPIClient {
             const o = obj as Record<string, unknown>;
             const width = (o['width'] as number) || 0;
             const height = (o['height'] as number) || 0;
-            return { id, width, height, area: width * height, obj: o };
+            // Remove ~u prefix from id if present
+            const cleanId = id.startsWith('~u') ? id.slice(2) : id;
+            return { id: cleanId, width, height, area: width * height, obj: o };
           })
           .sort((a, b) => b.area - a.area); // Sort by area, largest first
 
@@ -989,33 +1047,23 @@ export class ExportsAPIClient extends BaseAPIClient {
       const base64Data = Buffer.from(resourceResponse.data).toString('base64');
       const sizeKB = Math.round(resourceResponse.data.length / 1024);
 
-      // Return preview data with metadata
-      return ResponseFormatter.formatSuccess(
-        {
-          preview: {
-            data: base64Data,
-            contentType: 'image/png',
-            size: resourceResponse.data.length,
-            sizeKB,
-          },
-          metadata: {
-            fileName: fileData.name,
-            pageName: page.name,
-            objectId: targetObjectId,
-            objectName: targetObject['name'],
-            objectType: targetObject['type'],
-            originalWidth: objWidth,
-            originalHeight: objHeight,
-            scale,
-            quality,
-            outputWidth: Math.round(objWidth * scale),
-            outputHeight: Math.round(objHeight * scale),
-          },
-          // Provide image as data URI for easy display
-          dataUri: `data:image/png;base64,${base64Data}`,
-        },
-        `Preview generated: ${targetObject['name'] || 'Untitled'} (${sizeKB}KB)`
-      );
+      // Return preview as an actual displayable image
+      return ResponseFormatter.formatImage(base64Data, 'image/png', {
+        fileName: fileName,
+        pageName: page.name,
+        objectId: targetObjectId,
+        objectName: targetObject['name'],
+        objectType: targetObject['type'],
+        originalWidth: objWidth,
+        originalHeight: objHeight,
+        scale,
+        quality,
+        outputWidth: Math.round(objWidth * scale),
+        outputHeight: Math.round(objHeight * scale),
+        size: resourceResponse.data.length,
+        sizeKB,
+        message: `Preview: ${targetObject['name'] || 'Untitled'} (${sizeKB}KB)`,
+      });
     } catch (error) {
       if (this.isStorageError(error)) {
         return this.formatStorageError(`preview`, error);

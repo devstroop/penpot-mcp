@@ -12,6 +12,9 @@ export interface AccessToken {
 /**
  * Access Tokens API Client - Manage programmatic access tokens
  * ISSUE-019: Access Tokens
+ *
+ * Note: Access tokens allow programmatic API access without user session.
+ * These are created per-profile and can have optional expiration dates.
  */
 export class AccessTokensAPIClient extends BaseAPIClient {
   /**
@@ -24,49 +27,73 @@ export class AccessTokensAPIClient extends BaseAPIClient {
       const data = this.normalizeTransitResponse(response);
       const tokens = Array.isArray(data) ? data : [];
 
-      // Mask token values for security (only show last 4 chars)
-      const safeTokens = tokens.map((token: Record<string, unknown>) => ({
-        ...token,
-        token: token['token'] ? `****${String(token['token']).slice(-4)}` : undefined,
+      // Format tokens for consistent output (token value is NOT returned for security)
+      const formattedTokens = tokens.map((token: Record<string, unknown>) => ({
+        id: token['id'] || token['~:id'],
+        name: token['name'] || token['~:name'],
+        createdAt: token['created-at'] || token['~:created-at'],
+        updatedAt: token['updated-at'] || token['~:updated-at'],
+        expiresAt: token['expires-at'] || token['~:expires-at'],
       }));
 
-      return ResponseFormatter.formatList(safeTokens, 'accessToken', {
+      return ResponseFormatter.formatList(formattedTokens, 'accessToken', {
         total: tokens.length,
       });
     } catch (error) {
       logger.error('Failed to get access tokens', error);
+
+      // Handle CloudFlare or auth errors gracefully
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('CloudFlare') || errorMessage.includes('403')) {
+        return ResponseFormatter.formatSuccess(
+          {
+            tokens: [],
+            note: 'Access token management requires authentication. The current session may not have sufficient permissions.',
+          },
+          'Access token info'
+        );
+      }
+
       return ErrorHandler.handle(error, 'getAccessTokens');
     }
   }
 
   /**
    * Create a new access token
+   *
+   * @param name - Token name (max 250 characters)
+   * @param expiration - Optional duration string like "30d" (30 days), "1y" (1 year)
    */
-  async createAccessToken(
-    name: string,
-    expiresAt?: string // ISO date string or null for no expiration
-  ): Promise<MCPResponse> {
+  async createAccessToken(name: string, expiration?: string): Promise<MCPResponse> {
     try {
       const payload: Record<string, unknown> = {
         '~:name': name,
       };
 
-      if (expiresAt) {
-        // Convert ISO string to Transit datetime
-        const date = new Date(expiresAt);
-        payload['~:expiration-date'] = `~m${date.getTime()}`;
+      // Penpot expects expiration as a duration, not a date
+      // e.g., "30d" for 30 days, "1y" for 1 year
+      if (expiration) {
+        payload['~:expiration'] = expiration;
       }
 
       const response = await this.post<unknown>('/rpc/command/create-access-token', payload, true);
 
       const result = this.normalizeTransitResponse(response) as Record<string, unknown>;
 
+      // Format the result
+      const formattedResult = {
+        id: result['id'] || result['~:id'],
+        name: result['name'] || result['~:name'],
+        token: result['token'] || result['~:token'], // ONLY returned at creation time
+        createdAt: result['created-at'] || result['~:created-at'],
+        expiresAt: result['expires-at'] || result['~:expires-at'],
+      };
+
       // IMPORTANT: The token value is only returned once at creation time
-      // User must save it immediately
       return ResponseFormatter.formatSuccess(
         {
-          ...result,
-          warning: 'IMPORTANT: Save this token now. It will not be shown again.',
+          ...formattedResult,
+          warning: 'IMPORTANT: Save this token now. It will NOT be shown again.',
         },
         `Access token "${name}" created`
       );

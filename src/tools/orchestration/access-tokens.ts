@@ -5,6 +5,9 @@ import { logger } from '../../logger.js';
 
 /**
  * Access Tokens Tool - Manages programmatic access tokens
+ *
+ * Access tokens allow programmatic API access without browser sessions.
+ * Tokens can have optional expiration dates using duration format (e.g., "30d", "1y").
  */
 export class AccessTokensTool {
   private clientFactory: ClientFactory;
@@ -27,7 +30,7 @@ export class AccessTokensTool {
         if (!params.name) {
           return ResponseFormatter.formatError('name is required for create action');
         }
-        return client.accessTokens.createAccessToken(params.name, params.expiresAt);
+        return client.accessTokens.createAccessToken(params.name, params.expiration);
 
       case 'delete':
         if (!params.tokenId) {

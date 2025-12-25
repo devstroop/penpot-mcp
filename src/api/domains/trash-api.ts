@@ -11,34 +11,27 @@ export interface DeletedFile {
 /**
  * Trash API Client - Manage deleted files
  * ISSUE-018: Trash/Recovery
+ *
+ * NOTE: Penpot doesn't have a dedicated "get deleted files" endpoint in the public API.
+ * The restore functionality exists but listing deleted files requires frontend state.
+ * We provide restore and permanent delete operations which ARE supported.
  */
 export class TrashAPIClient extends BaseAPIClient {
   /**
    * Get deleted files for a team
+   * NOTE: This endpoint may not be available in all Penpot versions.
+   * The Penpot UI tracks deleted files client-side before permanent deletion.
    */
-  async getDeletedFiles(teamId: string): Promise<MCPResponse> {
-    try {
-      const payload = {
-        '~:team-id': `~u${teamId}`,
-      };
-
-      const response = await this.post<unknown>(
-        '/rpc/command/get-deleted-team-files',
-        payload,
-        true
-      );
-
-      const data = this.normalizeTransitResponse(response);
-      const files = Array.isArray(data) ? data : [];
-
-      return ResponseFormatter.formatList(files, 'deletedFile', {
-        teamId,
-        total: files.length,
-      });
-    } catch (error) {
-      logger.error('Failed to get deleted files', error);
-      return ErrorHandler.handle(error, `getDeletedFiles(${teamId})`);
-    }
+  async getDeletedFiles(_teamId: string): Promise<MCPResponse> {
+    // Penpot doesn't have a public get-deleted-team-files endpoint
+    // Return an informative message
+    return ResponseFormatter.formatSuccess(
+      {
+        files: [],
+        note: 'Penpot does not expose a public API to list deleted files. Deleted files are tracked in the UI until permanently deleted. Use restore action with known file IDs.',
+      },
+      'Deleted files listing not available via API'
+    );
   }
 
   /**

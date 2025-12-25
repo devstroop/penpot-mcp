@@ -258,7 +258,7 @@ export class ShapesTool {
         const objectResponse = await client.files.getObject(fileId, pageId, params.shapeId);
         if (objectResponse.isError) {
           return ResponseFormatter.formatError(
-            `Failed to get source object: ${objectResponse.content[0]?.text || 'Unknown error'}`
+            `Failed to get source object: ${objectResponse.content[0]?.type === 'text' ? objectResponse.content[0].text : 'Unknown error'}`
           );
         }
 

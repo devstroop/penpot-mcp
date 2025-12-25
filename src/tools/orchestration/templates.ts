@@ -5,6 +5,9 @@ import { logger } from '../../logger.js';
 
 /**
  * Templates Tool - Access and clone builtin templates
+ *
+ * Note: Templates are server-configured files in Penpot, primarily
+ * used in self-hosted deployments. SaaS instances may have limited support.
  */
 export class TemplatesTool {
   private clientFactory: ClientFactory;
@@ -29,7 +32,8 @@ export class TemplatesTool {
             'projectId and templateId are required for clone action'
           );
         }
-        return client.templates.cloneTemplate(params.projectId, params.templateId, params.name);
+        // Note: template IDs are string identifiers, not UUIDs
+        return client.templates.cloneTemplate(params.projectId, params.templateId);
 
       default:
         return ResponseFormatter.formatError(`Unknown action: ${action}`);

@@ -1,8 +1,15 @@
 export interface MCPResponse {
-  content: Array<{
-    type: 'text';
-    text: string;
-  }>;
+  content: Array<
+    | {
+        type: 'text';
+        text: string;
+      }
+    | {
+        type: 'image';
+        data: string;
+        mimeType: string;
+      }
+  >;
   isError?: boolean;
 }
 
@@ -108,5 +115,33 @@ export class ResponseFormatter {
         },
       ],
     };
+  }
+
+  /**
+   * Format image response with optional metadata
+   * Returns an actual image that can be displayed in chat
+   */
+  static formatImage(
+    base64Data: string,
+    mimeType: string,
+    metadata?: Record<string, unknown>
+  ): MCPResponse {
+    const content: MCPResponse['content'] = [
+      {
+        type: 'image',
+        data: base64Data,
+        mimeType: mimeType,
+      },
+    ];
+
+    // Add metadata as text if provided
+    if (metadata) {
+      content.push({
+        type: 'text',
+        text: JSON.stringify({ success: true, metadata }, null, 2),
+      });
+    }
+
+    return { content };
   }
 }

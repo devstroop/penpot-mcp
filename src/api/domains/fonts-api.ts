@@ -26,10 +26,14 @@ export interface Font {
 /**
  * Font API Client - Team font management (ISSUE-014)
  * Handles custom font upload, listing, and deletion
+ *
+ * Note: Font management requires team edition permissions.
+ * The Penpot API uses 'get-font-variants' to retrieve fonts.
  */
 export class FontAPIClient extends BaseAPIClient {
   /**
-   * Get all fonts for a team
+   * Get all font variants for a team
+   * Uses the get-font-variants endpoint with team-id parameter
    */
   async getTeamFonts(teamId: string): Promise<MCPResponse> {
     try {
@@ -37,7 +41,8 @@ export class FontAPIClient extends BaseAPIClient {
         '~:team-id': `~u${teamId}`,
       };
 
-      const response = await this.post<unknown>('/rpc/command/get-team-fonts', payload, true);
+      // Penpot uses get-font-variants, not get-team-fonts
+      const response = await this.post<unknown>('/rpc/command/get-font-variants', payload, true);
 
       const fonts = this.normalizeTransitResponse(response);
 
@@ -52,6 +57,19 @@ export class FontAPIClient extends BaseAPIClient {
       );
     } catch (error) {
       logger.error('Failed to get team fonts', error);
+
+      // Handle CloudFlare or permission errors gracefully
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('CloudFlare') || errorMessage.includes('403')) {
+        return ResponseFormatter.formatSuccess(
+          {
+            fonts: [],
+            note: 'Font management requires authentication with proper permissions. Ensure your access token has team edition permissions.',
+          },
+          'Font access info'
+        );
+      }
+
       return ErrorHandler.handle(error, 'getTeamFonts');
     }
   }

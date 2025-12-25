@@ -71,9 +71,12 @@ export class NavigateTool {
     }
 
     try {
-      const projectsData = JSON.parse(projectsResponse.content[0].text);
+      const projectsContent = projectsResponse.content[0];
+      const projectsData = JSON.parse(
+        projectsContent.type === 'text' ? projectsContent.text : '{}'
+      );
       const projects = projectsData.data?.projects || [];
-      
+
       const lowerQuery = query.toLowerCase();
       const matches: Array<{
         projectId: string;
@@ -85,7 +88,8 @@ export class NavigateTool {
       for (const project of projects) {
         const filesResponse = await projectsClient.getProjectFiles(project.id);
         if (!filesResponse.isError) {
-          const filesData = JSON.parse(filesResponse.content[0].text);
+          const filesContent = filesResponse.content[0];
+          const filesData = JSON.parse(filesContent.type === 'text' ? filesContent.text : '{}');
           const files = filesData.data?.files || [];
 
           for (const file of files) {
@@ -101,11 +105,14 @@ export class NavigateTool {
         }
       }
 
-      return ResponseFormatter.formatSuccess({
-        query,
-        matches,
-        count: matches.length,
-      }, `Found ${matches.length} files matching "${query}"`);
+      return ResponseFormatter.formatSuccess(
+        {
+          query,
+          matches,
+          count: matches.length,
+        },
+        `Found ${matches.length} files matching "${query}"`
+      );
     } catch (error) {
       return ResponseFormatter.formatError(`Search failed: ${error}`);
     }

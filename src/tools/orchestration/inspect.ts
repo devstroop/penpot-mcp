@@ -66,16 +66,17 @@ export class InspectTool {
     const { fileId, pageId, depth = 3 } = params;
 
     const client = this.clientFactory.createFilesClient();
-    
+
     try {
       // Get file data
       const response = await client.getFile(fileId);
-      
+
       if (response.isError) {
         return response;
       }
 
-      const fileData = JSON.parse(response.content[0].text);
+      const content = response.content[0];
+      const fileData = JSON.parse(content.type === 'text' ? content.text : '{}');
       const data = fileData.data?.data || {};
       const pagesIndex = data.pagesIndex || {};
 
@@ -121,18 +122,21 @@ export class InspectTool {
         const objects = (page['objects'] || {}) as Record<string, unknown>;
         const tree = buildTree(objects, null, 0);
 
-        return ResponseFormatter.formatSuccess({
-          fileId,
-          pageId,
-          pageName: page['name'],
-          depth,
-          tree,
-        }, `Document tree for page: ${page['name']}`);
+        return ResponseFormatter.formatSuccess(
+          {
+            fileId,
+            pageId,
+            pageName: page['name'],
+            depth,
+            tree,
+          },
+          `Document tree for page: ${page['name']}`
+        );
       }
 
       // Show tree for all pages
       const allTrees: Record<string, unknown> = {};
-      
+
       for (const [pId, page] of Object.entries(pagesIndex)) {
         const p = page as Record<string, unknown>;
         const objects = (p['objects'] || {}) as Record<string, unknown>;
@@ -142,11 +146,14 @@ export class InspectTool {
         };
       }
 
-      return ResponseFormatter.formatSuccess({
-        fileId,
-        depth,
-        pages: allTrees,
-      }, `Document tree (depth: ${depth})`);
+      return ResponseFormatter.formatSuccess(
+        {
+          fileId,
+          depth,
+          pages: allTrees,
+        },
+        `Document tree (depth: ${depth})`
+      );
     } catch (error) {
       return ResponseFormatter.formatError(`Failed to build tree: ${error}`);
     }

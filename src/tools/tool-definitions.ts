@@ -1618,7 +1618,8 @@ Actions:
 - list: List all available builtin templates
 - clone: Clone a template to create a new file
 
-Templates provide pre-made designs that can be used as starting points for new projects.`,
+Templates provide pre-made designs that can be used as starting points for new projects.
+Note: Templates are server-configured and may not be available on all Penpot instances.`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -1629,15 +1630,11 @@ Templates provide pre-made designs that can be used as starting points for new p
           },
           templateId: {
             type: 'string',
-            description: 'Template ID (required for clone)',
+            description: 'Template ID string (required for clone) - e.g., "test", "welcome"',
           },
           projectId: {
             type: 'string',
-            description: 'Target project ID (required for clone)',
-          },
-          name: {
-            type: 'string',
-            description: 'Name for the cloned file (optional)',
+            description: 'Target project UUID (required for clone)',
           },
         },
         required: ['action'],
@@ -1679,7 +1676,7 @@ Files stay in trash for a limited time before automatic permanent deletion.`,
 
     // ==================== Access Tokens Tool ====================
     {
-      name: 'access_tokens',
+      name: 'accessTokens',
       description: `Manage programmatic access tokens for Penpot API.
 
 Actions:
@@ -1698,15 +1695,16 @@ Access tokens allow programmatic access to the Penpot API without user credentia
           },
           tokenId: {
             type: 'string',
-            description: 'Token ID (required for delete)',
+            description: 'Token UUID (required for delete)',
           },
           name: {
             type: 'string',
-            description: 'Token name (required for create)',
+            description: 'Token name, max 250 chars (required for create)',
           },
-          expiresAt: {
+          expiration: {
             type: 'string',
-            description: 'Expiration datetime in ISO format (optional)',
+            description:
+              'Token expiration as duration string, e.g., "30d" (30 days), "1y" (1 year). Optional.',
           },
         },
         required: ['action'],

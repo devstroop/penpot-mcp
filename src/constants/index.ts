@@ -28,7 +28,7 @@ export const TOOL_NAMES = {
   WEBHOOKS: 'webhooks',
   TEMPLATES: 'templates',
   TRASH: 'trash',
-  ACCESS_TOKENS: 'access_tokens',
+  ACCESS_TOKENS: 'accessTokens',
   // Legacy tools (backward compatibility)
   NAVIGATE: 'navigate',
   INSPECT: 'inspect',

@@ -18,9 +18,7 @@ export class AssetsTool {
       case 'list':
         return this.listExportable(params);
       default:
-        return ResponseFormatter.formatError(
-          `Unknown action: ${action}. Use: export, list`
-        );
+        return ResponseFormatter.formatError(`Unknown action: ${action}. Use: export, list`);
     }
   }
 
@@ -54,17 +52,27 @@ export class AssetsTool {
       }
 
       try {
-        const fileData = JSON.parse(response.content[0].text);
+        const content = response.content[0];
+        const fileData = JSON.parse(content.type === 'text' ? content.text : '{}');
         const data = fileData.data?.data || {};
         const pagesIndex = data.pagesIndex || {};
 
-        const exportableTypes = ['frame', 'group', 'rect', 'circle', 'path', 'text', 'image', 'svg-raw'];
+        const exportableTypes = [
+          'frame',
+          'group',
+          'rect',
+          'circle',
+          'path',
+          'text',
+          'image',
+          'svg-raw',
+        ];
 
         const pages = Object.entries(pagesIndex).map(([id, page]) => {
           const p = page as Record<string, unknown>;
           const objects = (p['objects'] || {}) as Record<string, unknown>;
-          
-          const exportableCount = Object.values(objects).filter(obj => {
+
+          const exportableCount = Object.values(objects).filter((obj) => {
             const type = (obj as Record<string, unknown>)['type'] as string;
             return exportableTypes.includes(type?.toLowerCase());
           }).length;
@@ -76,11 +84,14 @@ export class AssetsTool {
           };
         });
 
-        return ResponseFormatter.formatSuccess({
-          fileId,
-          pages,
-          totalExportable: pages.reduce((sum, p) => sum + p.exportableCount, 0),
-        }, 'Exportable objects by page');
+        return ResponseFormatter.formatSuccess(
+          {
+            fileId,
+            pages,
+            totalExportable: pages.reduce((sum, p) => sum + p.exportableCount, 0),
+          },
+          'Exportable objects by page'
+        );
       } catch (error) {
         return ResponseFormatter.formatError(`Failed to analyze file: ${error}`);
       }
