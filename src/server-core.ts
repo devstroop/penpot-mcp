@@ -8,51 +8,14 @@ import {
   McpError,
   type CallToolResult,
 } from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod';
 
 import { ConfigManager } from './config.js';
 import { logger } from './logger.js';
 import { ClientFactory } from './api/client-factory.js';
 import { createToolDefinitions, ToolDefinition } from './tools/index.js';
-import { MCPResponse, ResponseFormatter } from './api/base/index.js';
-import {
-  // New comprehensive tools
-  ProjectsTool,
-  FilesTool,
-  ComponentsTool,
-  TokensTool,
-  ExportsTool,
-  CommentsTool,
-  TeamTool,
-  ProfileTool,
-  LibraryTool,
-  SearchTool,
-  AnalyzeTool,
-  ShapesTool,
-  // Legacy tools
-  NavigateTool,
-  InspectTool,
-  AssetsTool,
-} from './tools/orchestration/index.js';
-
-// Import Zod schemas for runtime validation
-import {
-  projectsParamsSchema,
-  filesParamsSchema,
-  componentsParamsSchema,
-  tokensParamsSchema,
-  exportsParamsSchema,
-  commentsParamsSchema,
-  teamParamsSchema,
-  profileParamsSchema,
-  libraryParamsSchema,
-  searchParamsSchema,
-  analyzeParamsSchema,
-  shapesParamsSchema,
-  navigateParamsSchema,
-  inspectParamsSchema,
-  assetsParamsSchema,
-} from './schemas/index.js';
+import { toolRegistry } from './tools/tool-registry.js';
+import { MCPResponse } from './api/base/index.js';
+import { DEFAULTS } from './constants/index.js';
 
 // Type adapter to convert MCPResponse to CallToolResult
 function toCallToolResult(response: MCPResponse): CallToolResult {
@@ -85,10 +48,13 @@ export class PenpotMCPServer {
       baseURL: penpotConfig.baseUrl,
       username: penpotConfig.username,
       password: penpotConfig.password,
-      timeout: 30000,
-      retryAttempts: 3,
-      retryDelay: 1000,
+      timeout: DEFAULTS.TIMEOUT,
+      retryAttempts: DEFAULTS.RETRY_ATTEMPTS,
+      retryDelay: DEFAULTS.RETRY_DELAY,
     });
+
+    // Configure tool registry with client factory
+    toolRegistry.setClientFactory(this.clientFactory);
 
     // Generate tool definitions
     this.toolDefinitions = createToolDefinitions();
@@ -107,7 +73,10 @@ export class PenpotMCPServer {
     );
 
     this.setupToolHandlers();
-    logger.info('Penpot MCP Server initialized', { toolCount: this.toolDefinitions.length });
+    logger.info('Penpot MCP Server initialized', {
+      toolCount: this.toolDefinitions.length,
+      registeredTools: toolRegistry.count,
+    });
   }
 
   private setupToolHandlers(): void {
@@ -124,7 +93,10 @@ export class PenpotMCPServer {
         const response = await this.handleToolCall(name, args as Record<string, unknown>);
         return toCallToolResult(response);
       } catch (error) {
-        logger.error('Tool execution error', { tool: name, error: error instanceof Error ? error.message : error });
+        logger.error('Tool execution error', {
+          tool: name,
+          error: error instanceof Error ? error.message : error,
+        });
 
         if (error instanceof McpError) {
           throw error;
@@ -138,140 +110,13 @@ export class PenpotMCPServer {
     });
   }
 
+  /**
+   * Handle tool calls using the centralized tool registry.
+   * Validation and instantiation are handled by the registry.
+   */
   private async handleToolCall(name: string, args: Record<string, unknown>): Promise<MCPResponse> {
     logger.debug('Handling tool call', { tool: name, args });
-
-    switch (name) {
-      // ==================== New Comprehensive Tools ====================
-
-      // Projects tool
-      case 'projects': {
-        const validated = this.validateParams(projectsParamsSchema, args);
-        const tool = new ProjectsTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Files tool
-      case 'files': {
-        const validated = this.validateParams(filesParamsSchema, args);
-        const tool = new FilesTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Components tool
-      case 'components': {
-        const validated = this.validateParams(componentsParamsSchema, args);
-        const tool = new ComponentsTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Tokens tool
-      case 'tokens': {
-        const validated = this.validateParams(tokensParamsSchema, args);
-        const tool = new TokensTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Exports tool
-      case 'exports': {
-        const validated = this.validateParams(exportsParamsSchema, args);
-        const tool = new ExportsTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Comments tool
-      case 'comments': {
-        const validated = this.validateParams(commentsParamsSchema, args);
-        const tool = new CommentsTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Team tool
-      case 'team': {
-        const validated = this.validateParams(teamParamsSchema, args);
-        const tool = new TeamTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Profile tool
-      case 'profile': {
-        const validated = this.validateParams(profileParamsSchema, args);
-        const tool = new ProfileTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Library tool
-      case 'library': {
-        const validated = this.validateParams(libraryParamsSchema, args);
-        const tool = new LibraryTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Search tool
-      case 'search': {
-        const validated = this.validateParams(searchParamsSchema, args);
-        const tool = new SearchTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Analyze tool
-      case 'analyze': {
-        const validated = this.validateParams(analyzeParamsSchema, args);
-        const tool = new AnalyzeTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Shapes tool
-      case 'shapes': {
-        const validated = this.validateParams(shapesParamsSchema, args);
-        const tool = new ShapesTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // ==================== Legacy Tools (backward compatibility) ====================
-
-      // Navigation tool
-      case 'navigate': {
-        const validated = this.validateParams(navigateParamsSchema, args);
-        const tool = new NavigateTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Inspection tool
-      case 'inspect': {
-        const validated = this.validateParams(inspectParamsSchema, args);
-        const tool = new InspectTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      // Assets tool
-      case 'assets': {
-        const validated = this.validateParams(assetsParamsSchema, args);
-        const tool = new AssetsTool(this.clientFactory);
-        return tool.execute(validated);
-      }
-
-      default:
-        logger.warn('Unknown tool requested', { tool: name });
-        throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
-    }
-  }
-
-  /**
-   * Validates parameters against a Zod schema.
-   * Throws McpError with InvalidParams code if validation fails.
-   */
-  private validateParams<T extends z.ZodType>(schema: T, args: unknown): z.infer<T> {
-    const result = schema.safeParse(args);
-    if (!result.success) {
-      const zodError = result.error;
-      const errorMessage = zodError.issues
-        .map((e: z.ZodIssue) => `${e.path.join('.')}: ${e.message}`)
-        .join('; ');
-      logger.warn('Parameter validation failed', { errors: zodError.issues });
-      throw new McpError(ErrorCode.InvalidParams, `Invalid parameters: ${errorMessage}`);
-    }
-    return result.data;
+    return toolRegistry.execute(name, args);
   }
 
   public onConnectionClose(handler: () => void | Promise<void>): void {
@@ -313,6 +158,9 @@ export class PenpotMCPServer {
         logger.warn('Error while closing MCP transport during cleanup', error);
       }
     }
+
+    // Clear tool instances
+    toolRegistry.clearInstances();
 
     this.transport = null;
     logger.info('Server resources cleaned up');

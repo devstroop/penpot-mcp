@@ -61,6 +61,24 @@ Dependencies added:
 - `typescript-eslint` ^8.x
 - `prettier` ^3.x
 
+### Phase 3: Architecture (Completed Dec 25, 2025)
+
+- **H1** ✅ Tool Registry - Replaced 65-line switch with centralized registry
+- **H3** ✅ Duplicate Validation - Now handled by schemas, tools assume valid input
+
+Files created:
+- `src/tools/tool-registry.ts` - Centralized tool registration, lazy initialization, validation
+
+Files modified:
+- `src/server-core.ts` - Reduced from ~280 lines to ~150 lines, uses toolRegistry
+- `src/tools/index.ts` - Exports toolRegistry
+
+Benefits:
+- Tools instantiated once (lazy), not per request
+- Single source of truth for tool → schema → factory mapping
+- Adding new tools: one `toolRegistry.register()` call
+- Validation centralized in registry, not duplicated in server-core
+
 ---
 
 ## Table of Contents
