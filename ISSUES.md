@@ -38,6 +38,29 @@ Files modified:
 Dependencies added:
 - `zod` ^3.24.2
 
+### Phase 2: Foundation (Completed Dec 25, 2025)
+
+- **H4** ✅ Error Hierarchy - Created typed error classes with `toMCPResponse()`
+- **M4** ✅ Config Validation - Added Zod schema validation for all env vars
+- **M2** ✅ Constants Module - Centralized tool names, endpoints, actions
+- **Quick Wins** ✅ LICENSE, .prettierrc, eslint.config.js, package.json scripts
+
+Files created:
+- `src/errors/index.ts` - PenpotError base class + AuthenticationError, NotFoundError, etc.
+- `src/constants/index.ts` - TOOL_NAMES, ENDPOINTS, ACTIONS, DEFAULTS, HTTP_STATUS
+- `LICENSE` - MIT License
+- `.prettierrc` - Prettier configuration
+- `eslint.config.js` - ESLint flat config
+
+Files modified:
+- `src/config.ts` - Added Zod schema validation with detailed error messages
+- `package.json` - Added lint:fix, format, format:check, typecheck scripts
+
+Dependencies added:
+- `@eslint/js` ^9.x
+- `typescript-eslint` ^8.x
+- `prettier` ^3.x
+
 ---
 
 ## Table of Contents
