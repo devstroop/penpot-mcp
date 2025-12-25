@@ -15,10 +15,10 @@ export interface FileData {
   id: string;
   name: string;
   data?: {
-    pagesIndex?: Record<string, PageData>;
-    componentsIndex?: Record<string, unknown>;
-    colorsIndex?: Record<string, unknown>;
-    typographiesIndex?: Record<string, unknown>;
+    'pages-index'?: Record<string, PageData>;
+    'components-index'?: Record<string, unknown>;
+    colors?: Record<string, unknown>;
+    typographies?: Record<string, unknown>;
   };
 }
 
@@ -87,13 +87,15 @@ export class FilesAPIClient extends BaseAPIClient {
       const meta = {
         id: fileData.id,
         name: fileData.name,
-        pageCount: fileData.data?.pagesIndex ? Object.keys(fileData.data.pagesIndex).length : 0,
-        componentCount: fileData.data?.componentsIndex
-          ? Object.keys(fileData.data.componentsIndex).length
+        pageCount: fileData.data?.['pages-index']
+          ? Object.keys(fileData.data['pages-index']).length
           : 0,
-        colorCount: fileData.data?.colorsIndex ? Object.keys(fileData.data.colorsIndex).length : 0,
-        typographyCount: fileData.data?.typographiesIndex
-          ? Object.keys(fileData.data.typographiesIndex).length
+        componentCount: fileData.data?.['components-index']
+          ? Object.keys(fileData.data['components-index']).length
+          : 0,
+        colorCount: fileData.data?.colors ? Object.keys(fileData.data.colors).length : 0,
+        typographyCount: fileData.data?.typographies
+          ? Object.keys(fileData.data.typographies).length
           : 0,
       };
 
@@ -216,15 +218,19 @@ export class FilesAPIClient extends BaseAPIClient {
       const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
-      const pagesIndex = fileData.data?.pagesIndex || {};
+      const pagesIndex = fileData.data?.['pages-index'] || {};
 
-      const pages = Object.entries(pagesIndex).map(([id, page]) => ({
-        id,
-        name: (page as PageData).name,
-        objectCount: (page as PageData).objects
-          ? Object.keys((page as PageData).objects!).length
-          : 0,
-      }));
+      const pages = Object.entries(pagesIndex).map(([id, page]) => {
+        // Strip ~u prefix from page ID if present
+        const cleanId = id.startsWith('~u') ? id.slice(2) : id;
+        return {
+          id: cleanId,
+          name: (page as PageData).name,
+          objectCount: (page as PageData).objects
+            ? Object.keys((page as PageData).objects!).length
+            : 0,
+        };
+      });
 
       return ResponseFormatter.formatList(pages, 'page', {
         total: pages.length,
@@ -242,7 +248,11 @@ export class FilesAPIClient extends BaseAPIClient {
       const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
-      const page = fileData.data?.pagesIndex?.[pageId];
+      const pagesIndex = fileData.data?.['pages-index'] || {};
+
+      // Try multiple key formats: raw, with ~u prefix, without prefix
+      const cleanPageId = pageId.startsWith('~u') ? pageId.slice(2) : pageId;
+      const page = pagesIndex[pageId] || pagesIndex[`~u${cleanPageId}`] || pagesIndex[cleanPageId];
 
       if (!page) {
         return ResponseFormatter.formatError(`Page not found: ${pageId}`);
@@ -278,7 +288,11 @@ export class FilesAPIClient extends BaseAPIClient {
       const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
-      const page = fileData.data?.pagesIndex?.[pageId];
+      const pagesIndex = fileData.data?.['pages-index'] || {};
+
+      // Try multiple key formats: raw, with ~u prefix, without prefix
+      const cleanPageId = pageId.startsWith('~u') ? pageId.slice(2) : pageId;
+      const page = pagesIndex[pageId] || pagesIndex[`~u${cleanPageId}`] || pagesIndex[cleanPageId];
 
       if (!page) {
         return ResponseFormatter.formatError(`Page not found: ${pageId}`);
@@ -315,7 +329,7 @@ export class FilesAPIClient extends BaseAPIClient {
       let pageId: string | null = null;
       let pageData: PageData | null = null;
 
-      for (const [pId, page] of Object.entries(data.pagesIndex || {})) {
+      for (const [pId, page] of Object.entries(data['pages-index'] || {})) {
         const p = page as PageData;
         if (p.objects?.[objectId]) {
           pageId = pId;
@@ -426,9 +440,14 @@ export class FilesAPIClient extends BaseAPIClient {
         objectType: string;
       }> = [];
 
+      const pagesIndex = data['pages-index'] || {};
+      const cleanPageId = pageId?.startsWith('~u') ? pageId.slice(2) : pageId;
       const pagesToSearch = pageId
-        ? { [pageId]: data.pagesIndex?.[pageId] }
-        : data.pagesIndex || {};
+        ? {
+            [pageId]:
+              pagesIndex[pageId] || pagesIndex[`~u${cleanPageId}`] || pagesIndex[cleanPageId || ''],
+          }
+        : pagesIndex;
 
       for (const [pId, page] of Object.entries(pagesToSearch)) {
         if (!page) continue;
@@ -474,7 +493,7 @@ export class FilesAPIClient extends BaseAPIClient {
       const objectTypes: Record<string, number> = {};
       let totalObjects = 0;
 
-      const pagesIndex = data.pagesIndex || {};
+      const pagesIndex = data['pages-index'] || {};
       for (const page of Object.values(pagesIndex)) {
         const pageData = page as PageData;
         const objects = pageData.objects || {};
@@ -493,9 +512,9 @@ export class FilesAPIClient extends BaseAPIClient {
         pageCount: Object.keys(pagesIndex).length,
         objectCount: totalObjects,
         objectTypes,
-        componentCount: data.componentsIndex ? Object.keys(data.componentsIndex).length : 0,
-        colorCount: data.colorsIndex ? Object.keys(data.colorsIndex).length : 0,
-        typographyCount: data.typographiesIndex ? Object.keys(data.typographiesIndex).length : 0,
+        componentCount: data['components-index'] ? Object.keys(data['components-index']).length : 0,
+        colorCount: data.colors ? Object.keys(data.colors).length : 0,
+        typographyCount: data.typographies ? Object.keys(data.typographies).length : 0,
       };
 
       return ResponseFormatter.formatSuccess(analysis, `File analysis: ${fileData.name}`);
