@@ -334,7 +334,12 @@ export class FileChangesAPIClient extends BaseAPIClient {
           transitOp['~:attr'] = `~:${op.attr}`;
         }
         if (op.val !== undefined) {
-          transitOp['~:val'] = op.val;
+          // Convert object values to Transit format
+          if (typeof op.val === 'object' && op.val !== null) {
+            transitOp['~:val'] = this.objectToTransit(op.val as Record<string, unknown>);
+          } else {
+            transitOp['~:val'] = op.val;
+          }
         }
         if (op.value) {
           transitOp['~:value'] = this.objectToTransit(op.value);
