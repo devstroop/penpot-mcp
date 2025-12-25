@@ -1,0 +1,46 @@
+{
+  "name": "penpot-mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol server for Penpot design platform",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "penpot-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "lint": "eslint src/**/*.ts",
+    "test": "vitest",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "penpot",
+    "design",
+    "model-context-protocol",
+    "ai",
+    "assistant"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0",
+    "axios": "^1.7.0",
+    "dotenv": "^16.4.0",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/uuid": "^10.0.0",
+    "eslint": "^9.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
