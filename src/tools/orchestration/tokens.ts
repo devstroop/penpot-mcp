@@ -29,7 +29,9 @@ export class TokensTool {
 
       case 'color_create':
         if (!params.name || !params.color) {
-          return ResponseFormatter.formatError('name and color are required for color_create action');
+          return ResponseFormatter.formatError(
+            'name and color are required for color_create action'
+          );
         }
         return client.tokens.createColor(fileId, params.name, params.color, params.opacity);
 
@@ -53,15 +55,18 @@ export class TokensTool {
       case 'typography':
         return client.tokens.getTypography(fileId);
 
-      case 'typography_get':
+      case 'typography_get': {
         if (!params.typographyId) {
-          return ResponseFormatter.formatError('typographyId is required for typography_get action');
+          return ResponseFormatter.formatError(
+            'typographyId is required for typography_get action'
+          );
         }
         // Get all typography and filter by ID
         const allTypo = await client.tokens.getTypography(fileId);
         if (allTypo.isError) return allTypo;
         // For now return the full list - specific get would need enhancement
         return allTypo;
+      }
 
       case 'typography_create':
         if (!params.name) {
@@ -76,13 +81,19 @@ export class TokensTool {
 
       case 'typography_update':
         if (!params.typographyId) {
-          return ResponseFormatter.formatError('typographyId is required for typography_update action');
+          return ResponseFormatter.formatError(
+            'typographyId is required for typography_update action'
+          );
         }
-        return ResponseFormatter.formatError('typography_update not yet implemented - use typography_create instead');
+        return ResponseFormatter.formatError(
+          'typography_update not yet implemented - use typography_create instead'
+        );
 
       case 'typography_delete':
         if (!params.typographyId) {
-          return ResponseFormatter.formatError('typographyId is required for typography_delete action');
+          return ResponseFormatter.formatError(
+            'typographyId is required for typography_delete action'
+          );
         }
         return ResponseFormatter.formatError('typography_delete not yet implemented');
 

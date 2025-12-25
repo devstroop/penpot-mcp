@@ -28,6 +28,13 @@ import {
   SearchTool,
   AnalyzeTool,
   ShapesTool,
+  MediaTool,
+  FontsTool,
+  ShareTool,
+  WebhooksTool,
+  TemplatesTool,
+  TrashTool,
+  AccessTokensTool,
   NavigateTool,
   InspectTool,
   AssetsTool,
@@ -47,6 +54,13 @@ import {
   searchParamsSchema,
   analyzeParamsSchema,
   shapesParamsSchema,
+  mediaParamsSchema,
+  fontsParamsSchema,
+  shareParamsSchema,
+  webhooksParamsSchema,
+  templatesParamsSchema,
+  trashParamsSchema,
+  accessTokensParamsSchema,
   navigateParamsSchema,
   inspectParamsSchema,
   assetsParamsSchema,
@@ -251,6 +265,55 @@ toolRegistry.register({
   name: TOOL_NAMES.SHAPES,
   schema: shapesParamsSchema,
   factory: (cf) => new ShapesTool(cf),
+});
+
+// Media tool
+toolRegistry.register({
+  name: TOOL_NAMES.MEDIA,
+  schema: mediaParamsSchema,
+  factory: (cf) => new MediaTool(cf),
+});
+
+// Fonts tool
+toolRegistry.register({
+  name: TOOL_NAMES.FONTS,
+  schema: fontsParamsSchema,
+  factory: (cf) => new FontsTool(cf),
+});
+
+// Share tool
+toolRegistry.register({
+  name: TOOL_NAMES.SHARE,
+  schema: shareParamsSchema,
+  factory: (cf) => new ShareTool(cf),
+});
+
+// Webhooks tool
+toolRegistry.register({
+  name: TOOL_NAMES.WEBHOOKS,
+  schema: webhooksParamsSchema,
+  factory: (cf) => new WebhooksTool(cf),
+});
+
+// Templates tool
+toolRegistry.register({
+  name: TOOL_NAMES.TEMPLATES,
+  schema: templatesParamsSchema,
+  factory: (cf) => new TemplatesTool(cf),
+});
+
+// Trash tool
+toolRegistry.register({
+  name: TOOL_NAMES.TRASH,
+  schema: trashParamsSchema,
+  factory: (cf) => new TrashTool(cf),
+});
+
+// Access Tokens tool
+toolRegistry.register({
+  name: TOOL_NAMES.ACCESS_TOKENS,
+  schema: accessTokensParamsSchema,
+  factory: (cf) => new AccessTokensTool(cf),
 });
 
 // ==================== Legacy Tools ====================

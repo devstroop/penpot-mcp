@@ -10,6 +10,13 @@ import {
   ProfileAPIClient,
   LibraryAPIClient,
   FileChangesAPIClient,
+  MediaAPIClient,
+  FontAPIClient,
+  ShareAPIClient,
+  WebhooksAPIClient,
+  TemplatesAPIClient,
+  TrashAPIClient,
+  AccessTokensAPIClient,
 } from './domains/index.js';
 
 export interface PenpotClient {
@@ -23,6 +30,13 @@ export interface PenpotClient {
   profile: ProfileAPIClient;
   library: LibraryAPIClient;
   fileChanges: FileChangesAPIClient;
+  media: MediaAPIClient;
+  fonts: FontAPIClient;
+  share: ShareAPIClient;
+  webhooks: WebhooksAPIClient;
+  templates: TemplatesAPIClient;
+  trash: TrashAPIClient;
+  accessTokens: AccessTokensAPIClient;
 }
 
 /**
@@ -41,6 +55,13 @@ export class ClientFactory {
   private sharedProfileClient: ProfileAPIClient | null = null;
   private sharedLibraryClient: LibraryAPIClient | null = null;
   private sharedFileChangesClient: FileChangesAPIClient | null = null;
+  private sharedMediaClient: MediaAPIClient | null = null;
+  private sharedFontsClient: FontAPIClient | null = null;
+  private sharedShareClient: ShareAPIClient | null = null;
+  private sharedWebhooksClient: WebhooksAPIClient | null = null;
+  private sharedTemplatesClient: TemplatesAPIClient | null = null;
+  private sharedTrashClient: TrashAPIClient | null = null;
+  private sharedAccessTokensClient: AccessTokensAPIClient | null = null;
 
   constructor(config: PenpotClientConfig) {
     this.config = config;
@@ -61,6 +82,13 @@ export class ClientFactory {
       profile: this.createProfileClient(),
       library: this.createLibraryClient(),
       fileChanges: this.createFileChangesClient(),
+      media: this.createMediaClient(),
+      fonts: this.createFontsClient(),
+      share: this.createShareClient(),
+      webhooks: this.createWebhooksClient(),
+      templates: this.createTemplatesClient(),
+      trash: this.createTrashClient(),
+      accessTokens: this.createAccessTokensClient(),
     };
   }
 
@@ -165,6 +193,76 @@ export class ClientFactory {
   }
 
   /**
+   * Create or return shared Media API client
+   */
+  createMediaClient(): MediaAPIClient {
+    if (!this.sharedMediaClient) {
+      this.sharedMediaClient = new MediaAPIClient(this.config);
+    }
+    return this.sharedMediaClient;
+  }
+
+  /**
+   * Create or return shared Fonts API client
+   */
+  createFontsClient(): FontAPIClient {
+    if (!this.sharedFontsClient) {
+      this.sharedFontsClient = new FontAPIClient(this.config);
+    }
+    return this.sharedFontsClient;
+  }
+
+  /**
+   * Create or return shared Share API client
+   */
+  createShareClient(): ShareAPIClient {
+    if (!this.sharedShareClient) {
+      this.sharedShareClient = new ShareAPIClient(this.config);
+    }
+    return this.sharedShareClient;
+  }
+
+  /**
+   * Create or return shared Webhooks API client
+   */
+  createWebhooksClient(): WebhooksAPIClient {
+    if (!this.sharedWebhooksClient) {
+      this.sharedWebhooksClient = new WebhooksAPIClient(this.config);
+    }
+    return this.sharedWebhooksClient;
+  }
+
+  /**
+   * Create or return shared Templates API client
+   */
+  createTemplatesClient(): TemplatesAPIClient {
+    if (!this.sharedTemplatesClient) {
+      this.sharedTemplatesClient = new TemplatesAPIClient(this.config);
+    }
+    return this.sharedTemplatesClient;
+  }
+
+  /**
+   * Create or return shared Trash API client
+   */
+  createTrashClient(): TrashAPIClient {
+    if (!this.sharedTrashClient) {
+      this.sharedTrashClient = new TrashAPIClient(this.config);
+    }
+    return this.sharedTrashClient;
+  }
+
+  /**
+   * Create or return shared Access Tokens API client
+   */
+  createAccessTokensClient(): AccessTokensAPIClient {
+    if (!this.sharedAccessTokensClient) {
+      this.sharedAccessTokensClient = new AccessTokensAPIClient(this.config);
+    }
+    return this.sharedAccessTokensClient;
+  }
+
+  /**
    * Get the current config
    */
   getConfig(): PenpotClientConfig {
@@ -194,5 +292,12 @@ export class ClientFactory {
     this.sharedProfileClient = null;
     this.sharedLibraryClient = null;
     this.sharedFileChangesClient = null;
+    this.sharedMediaClient = null;
+    this.sharedFontsClient = null;
+    this.sharedShareClient = null;
+    this.sharedWebhooksClient = null;
+    this.sharedTemplatesClient = null;
+    this.sharedTrashClient = null;
+    this.sharedAccessTokensClient = null;
   }
 }

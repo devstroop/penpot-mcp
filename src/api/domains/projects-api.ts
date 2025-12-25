@@ -16,17 +16,12 @@ export interface Project {
  * Handles all project-related operations for Penpot
  */
 export class ProjectsAPIClient extends BaseAPIClient {
-  
   /**
    * List all projects for the authenticated user
    */
   async listProjects(): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown[]>(
-        '/rpc/command/get-all-projects',
-        {},
-        false
-      );
+      const response = await this.post<unknown[]>('/rpc/command/get-all-projects', {}, false);
 
       const projects = this.normalizeTransitResponse(response) as Project[];
 
@@ -43,14 +38,10 @@ export class ProjectsAPIClient extends BaseAPIClient {
    */
   async getProject(projectId: string): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown[]>(
-        '/rpc/command/get-all-projects',
-        {},
-        false
-      );
+      const response = await this.post<unknown[]>('/rpc/command/get-all-projects', {}, false);
 
       const projects = this.normalizeTransitResponse(response) as Project[];
-      const project = projects.find(p => p.id === projectId);
+      const project = projects.find((p) => p.id === projectId);
 
       if (!project) {
         return ResponseFormatter.formatError(`Project not found: ${projectId}`);
@@ -70,19 +61,19 @@ export class ProjectsAPIClient extends BaseAPIClient {
       const payload: Record<string, unknown> = {
         '~:name': name,
       };
-      
+
       if (teamId) {
         payload['~:team-id'] = `~u${teamId}`;
       }
-      
+
       const response = await this.post<unknown>(
         '/rpc/command/create-project',
         payload,
         true // Use Transit+JSON
       );
-      
+
       const project = this.normalizeTransitResponse(response);
-      
+
       return ResponseFormatter.formatSuccess(project, `Project "${name}" created successfully`);
     } catch (error) {
       logger.error('Failed to create project', error);
@@ -99,15 +90,11 @@ export class ProjectsAPIClient extends BaseAPIClient {
         '~:id': `~u${projectId}`,
         '~:name': newName,
       };
-      
-      const response = await this.post<unknown>(
-        '/rpc/command/rename-project',
-        payload,
-        true
-      );
-      
+
+      const response = await this.post<unknown>('/rpc/command/rename-project', payload, true);
+
       const project = this.normalizeTransitResponse(response);
-      
+
       return ResponseFormatter.formatSuccess(project, `Project renamed to "${newName}"`);
     } catch (error) {
       logger.error('Failed to rename project', error);
@@ -123,14 +110,13 @@ export class ProjectsAPIClient extends BaseAPIClient {
       const payload = {
         '~:id': `~u${projectId}`,
       };
-      
-      await this.post<unknown>(
-        '/rpc/command/delete-project',
-        payload,
-        true
+
+      await this.post<unknown>('/rpc/command/delete-project', payload, true);
+
+      return ResponseFormatter.formatSuccess(
+        { deleted: true, projectId },
+        `Project ${projectId} deleted`
       );
-      
-      return ResponseFormatter.formatSuccess({ deleted: true, projectId }, `Project ${projectId} deleted`);
     } catch (error) {
       logger.error('Failed to delete project', error);
       return ErrorHandler.handle(error, 'deleteProject');
@@ -145,19 +131,15 @@ export class ProjectsAPIClient extends BaseAPIClient {
       const payload: Record<string, unknown> = {
         '~:project-id': `~u${projectId}`,
       };
-      
+
       if (newName) {
         payload['~:name'] = newName;
       }
-      
-      const response = await this.post<unknown>(
-        '/rpc/command/duplicate-project',
-        payload,
-        true
-      );
-      
+
+      const response = await this.post<unknown>('/rpc/command/duplicate-project', payload, true);
+
       const project = this.normalizeTransitResponse(response);
-      
+
       return ResponseFormatter.formatSuccess(project, 'Project duplicated successfully');
     } catch (error) {
       logger.error('Failed to duplicate project', error);
@@ -174,15 +156,11 @@ export class ProjectsAPIClient extends BaseAPIClient {
         '~:project-id': `~u${projectId}`,
         '~:team-id': `~u${targetTeamId}`,
       };
-      
-      const response = await this.post<unknown>(
-        '/rpc/command/move-project',
-        payload,
-        true
-      );
-      
+
+      const response = await this.post<unknown>('/rpc/command/move-project', payload, true);
+
       const project = this.normalizeTransitResponse(response);
-      
+
       return ResponseFormatter.formatSuccess(project, `Project moved to team ${targetTeamId}`);
     } catch (error) {
       logger.error('Failed to move project', error);
@@ -197,8 +175,8 @@ export class ProjectsAPIClient extends BaseAPIClient {
     try {
       const response = await this.post<unknown[]>(
         '/rpc/command/get-project-files',
-        { 'project-id': projectId },
-        false
+        { '~:project-id': `~u${projectId}` },
+        true // Use Transit+JSON format
       );
 
       const files = this.normalizeTransitResponse(response) as unknown[];
@@ -217,15 +195,15 @@ export class ProjectsAPIClient extends BaseAPIClient {
   async getProjectStats(projectId: string): Promise<MCPResponse> {
     try {
       const filesResult = await this.getProjectFiles(projectId);
-      
+
       if (filesResult.isError) {
         return filesResult;
       }
-      
-      const files = (filesResult.content[0] as any)?.text 
-        ? JSON.parse((filesResult.content[0] as any).text).items 
+
+      const files = (filesResult.content[0] as any)?.text
+        ? JSON.parse((filesResult.content[0] as any).text).items
         : [];
-      
+
       const stats = {
         projectId,
         totalFiles: files.length,
@@ -236,7 +214,7 @@ export class ProjectsAPIClient extends BaseAPIClient {
           modifiedAt: f.modifiedAt,
         })),
       };
-      
+
       return ResponseFormatter.formatSuccess(stats, `Project has ${files.length} files`);
     } catch (error) {
       logger.error('Failed to get project stats', error);
@@ -250,11 +228,11 @@ export class ProjectsAPIClient extends BaseAPIClient {
   async validateProject(projectId: string): Promise<MCPResponse> {
     try {
       const result = await this.getProject(projectId);
-      
+
       if (result.isError) {
         return ResponseFormatter.formatError(`Project ${projectId} is not accessible`);
       }
-      
+
       return ResponseFormatter.formatSuccess(
         { valid: true, accessible: true, projectId },
         `Project ${projectId} is valid and accessible`

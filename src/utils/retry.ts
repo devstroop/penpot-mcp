@@ -124,7 +124,6 @@ export async function retryWithBackoff<T>(
   config: Partial<RetryConfig> = {}
 ): Promise<T> {
   const cfg: RetryConfig = { ...DEFAULT_RETRY_CONFIG, ...config };
-  const startTime = Date.now();
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= cfg.maxAttempts; attempt++) {

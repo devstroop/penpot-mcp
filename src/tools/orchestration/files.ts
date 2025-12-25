@@ -76,7 +76,9 @@ export class FilesTool {
 
       case 'object':
         if (!params.fileId || !params.pageId || !params.objectId) {
-          return ResponseFormatter.formatError('fileId, pageId and objectId are required for object action');
+          return ResponseFormatter.formatError(
+            'fileId, pageId and objectId are required for object action'
+          );
         }
         return client.files.getObject(params.fileId, params.pageId, params.objectId);
 
@@ -115,7 +117,9 @@ export class FilesTool {
       // Shape creation actions
       case 'add_frame':
         if (!params.fileId || !params.pageId) {
-          return ResponseFormatter.formatError('fileId and pageId are required for add_frame action');
+          return ResponseFormatter.formatError(
+            'fileId and pageId are required for add_frame action'
+          );
         }
         return client.fileChanges.addFrame(params.fileId, params.pageId, {
           x: params.x ?? 0,
@@ -124,11 +128,14 @@ export class FilesTool {
           height: params.height ?? 1080,
           name: params.name,
           fill: params.fill,
+          frameId: params.frameId,
         });
 
       case 'add_rectangle':
         if (!params.fileId || !params.pageId) {
-          return ResponseFormatter.formatError('fileId and pageId are required for add_rectangle action');
+          return ResponseFormatter.formatError(
+            'fileId and pageId are required for add_rectangle action'
+          );
         }
         return client.fileChanges.addRectangle(params.fileId, params.pageId, {
           x: params.x ?? 0,
@@ -138,11 +145,14 @@ export class FilesTool {
           name: params.name,
           fill: params.fill,
           fillOpacity: params.fillOpacity,
+          frameId: params.frameId,
         });
 
       case 'add_ellipse':
         if (!params.fileId || !params.pageId) {
-          return ResponseFormatter.formatError('fileId and pageId are required for add_ellipse action');
+          return ResponseFormatter.formatError(
+            'fileId and pageId are required for add_ellipse action'
+          );
         }
         return client.fileChanges.addEllipse(params.fileId, params.pageId, {
           x: params.x ?? 0,
@@ -152,11 +162,14 @@ export class FilesTool {
           name: params.name,
           fill: params.fill,
           fillOpacity: params.fillOpacity,
+          frameId: params.frameId,
         });
 
       case 'add_text':
         if (!params.fileId || !params.pageId || !params.content) {
-          return ResponseFormatter.formatError('fileId, pageId and content are required for add_text action');
+          return ResponseFormatter.formatError(
+            'fileId, pageId and content are required for add_text action'
+          );
         }
         return client.fileChanges.addText(params.fileId, params.pageId, {
           x: params.x ?? 0,
@@ -169,11 +182,14 @@ export class FilesTool {
           fill: params.fill,
           width: params.width,
           height: params.height,
+          frameId: params.frameId,
         });
 
       case 'add_path':
         if (!params.fileId || !params.pageId || !params.pathPoints) {
-          return ResponseFormatter.formatError('fileId, pageId and pathPoints are required for add_path action');
+          return ResponseFormatter.formatError(
+            'fileId, pageId and pathPoints are required for add_path action'
+          );
         }
         return client.fileChanges.addPath(params.fileId, params.pageId, {
           points: params.pathPoints,
@@ -181,19 +197,45 @@ export class FilesTool {
           stroke: params.stroke,
           strokeWidth: params.strokeWidth,
           fill: params.fill,
+          frameId: params.frameId,
         });
 
       case 'modify_object':
         if (!params.fileId || !params.pageId || !params.objectId || !params.operations) {
-          return ResponseFormatter.formatError('fileId, pageId, objectId and operations are required for modify_object action');
+          return ResponseFormatter.formatError(
+            'fileId, pageId, objectId and operations are required for modify_object action'
+          );
         }
-        return client.fileChanges.modifyObject(params.fileId, params.pageId, params.objectId, params.operations);
+        return client.fileChanges.modifyObject(
+          params.fileId,
+          params.pageId,
+          params.objectId,
+          params.operations
+        );
 
       case 'delete_object':
         if (!params.fileId || !params.pageId || !params.objectId) {
-          return ResponseFormatter.formatError('fileId, pageId and objectId are required for delete_object action');
+          return ResponseFormatter.formatError(
+            'fileId, pageId and objectId are required for delete_object action'
+          );
         }
         return client.fileChanges.deleteObject(params.fileId, params.pageId, params.objectId);
+
+      case 'import_svg':
+        if (!params.fileId || !params.pageId || !params.svgContent) {
+          return ResponseFormatter.formatError(
+            'fileId, pageId and svgContent are required for import_svg action'
+          );
+        }
+        return client.fileChanges.importSVG(params.fileId, params.pageId, {
+          svg: params.svgContent,
+          x: params.x,
+          y: params.y,
+          scale: params.scale,
+          name: params.name,
+          frameId: params.frameId,
+          groupShapes: params.groupShapes,
+        });
 
       default:
         return ResponseFormatter.formatError(`Unknown action: ${action}`);

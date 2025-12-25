@@ -21,7 +21,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().min(1).max(65535).default(DEFAULTS.PORT),
 });
 
-type EnvConfig = z.infer<typeof envSchema>;
+// Type inferred from schema (exported for potential future use)
+export type EnvConfig = z.infer<typeof envSchema>;
 
 export interface PenpotConfig {
   username: string;

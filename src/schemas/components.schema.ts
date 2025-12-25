@@ -18,6 +18,7 @@ export const componentsParamsSchema = z
       'stats',
       'detach',
       'reset',
+      'instantiate',
     ]),
     fileId: z.string().uuid('Invalid file UUID'),
     componentId: z.string().uuid('Invalid component UUID').optional(),
@@ -27,6 +28,11 @@ export const componentsParamsSchema = z
     name: z.string().min(1).max(255).optional(),
     annotation: z.string().max(2000).optional(),
     query: z.string().optional(),
+    // Instantiate action parameters
+    sourceFileId: z.string().uuid('Invalid source file UUID').optional(),
+    x: z.number().optional(),
+    y: z.number().optional(),
+    frameId: z.string().uuid('Invalid frame UUID').optional(),
   })
   .refine(
     (data) => {
@@ -45,6 +51,16 @@ export const componentsParamsSchema = z
       // search requires query
       if (data.action === 'search') {
         return !!data.query;
+      }
+      // instantiate requires sourceFileId, componentId, pageId, x, y
+      if (data.action === 'instantiate') {
+        return (
+          !!data.sourceFileId &&
+          !!data.componentId &&
+          !!data.pageId &&
+          data.x !== undefined &&
+          data.y !== undefined
+        );
       }
       return true;
     },

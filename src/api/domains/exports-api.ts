@@ -8,7 +8,8 @@ export type ExportQuality = 'low' | 'medium' | 'high' | 'ultra';
 // Error messages for storage-related issues
 const STORAGE_ERROR_MESSAGES = {
   NO_STORAGE: 'Asset export is not available. S3/Minio storage is not configured on the server.',
-  STORAGE_UNAVAILABLE: 'Asset storage is temporarily unavailable. Please check server storage configuration.',
+  STORAGE_UNAVAILABLE:
+    'Asset storage is temporarily unavailable. Please check server storage configuration.',
   EXPORT_FAILED: 'Export failed. This may be due to missing storage configuration (S3/Minio).',
 };
 
@@ -62,30 +63,34 @@ export class ExportsAPIClient extends BaseAPIClient {
       const status = error.response?.status;
       const data = error.response?.data;
       const message = typeof data === 'string' ? data : JSON.stringify(data || '');
-      
+
       // Common storage-related error indicators
       if (status === 500 || status === 502 || status === 503) {
-        if (message.includes('storage') || 
-            message.includes('s3') || 
-            message.includes('minio') ||
-            message.includes('asset') ||
-            message.includes('resource') ||
-            message.includes('bucket')) {
+        if (
+          message.includes('storage') ||
+          message.includes('s3') ||
+          message.includes('minio') ||
+          message.includes('asset') ||
+          message.includes('resource') ||
+          message.includes('bucket')
+        ) {
           return true;
         }
       }
-      
+
       // Connection refused to storage backend
       if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
         return true;
       }
     }
-    
+
     const errorMessage = String(error).toLowerCase();
-    return errorMessage.includes('storage') || 
-           errorMessage.includes('s3') || 
-           errorMessage.includes('minio') ||
-           errorMessage.includes('bucket');
+    return (
+      errorMessage.includes('storage') ||
+      errorMessage.includes('s3') ||
+      errorMessage.includes('minio') ||
+      errorMessage.includes('bucket')
+    );
   }
 
   /**
@@ -102,30 +107,28 @@ export class ExportsAPIClient extends BaseAPIClient {
    * Create an export job and get the resource
    */
   async exportObject(params: ExportParams): Promise<MCPResponse> {
-    const {
-      fileId,
-      pageId,
-      objectId,
-      format = 'png',
-      scale = 1,
-    } = params;
+    const { fileId, pageId, objectId, format = 'png', scale = 1 } = params;
 
     try {
       await this.ensureAuthenticated();
 
       const profileId = this.getProfileId();
       if (!profileId) {
-        return ResponseFormatter.formatError('Profile ID not available. Please authenticate first.');
+        return ResponseFormatter.formatError(
+          'Profile ID not available. Please authenticate first.'
+        );
       }
 
       const authToken = this.getAuthToken();
       if (!authToken) {
-        return ResponseFormatter.formatError('Auth token not available. Please authenticate first.');
+        return ResponseFormatter.formatError(
+          'Auth token not available. Please authenticate first.'
+        );
       }
 
       // Create export job
       const exportUrl = `${this.config.baseURL}/export`;
-      
+
       const payload = {
         '~:wait': true,
         '~:exports': [
@@ -148,8 +151,8 @@ export class ExportsAPIClient extends BaseAPIClient {
       const exportResponse = await axios.post(exportUrl, payload, {
         headers: {
           'Content-Type': 'application/transit+json',
-          'Accept': 'application/transit+json',
-          'Cookie': `auth-token=${authToken}`,
+          Accept: 'application/transit+json',
+          Cookie: `auth-token=${authToken}`,
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         },
       });
@@ -171,8 +174,8 @@ export class ExportsAPIClient extends BaseAPIClient {
       const resourceResponse = await axios.post(exportUrl, resourcePayload, {
         headers: {
           'Content-Type': 'application/transit+json',
-          'Accept': '*/*',
-          'Cookie': `auth-token=${authToken}`,
+          Accept: '*/*',
+          Cookie: `auth-token=${authToken}`,
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         },
         responseType: 'arraybuffer',
@@ -182,15 +185,18 @@ export class ExportsAPIClient extends BaseAPIClient {
       const contentType = resourceResponse.headers['content-type'] || `image/${format}`;
       const base64Data = Buffer.from(resourceResponse.data).toString('base64');
 
-      return ResponseFormatter.formatSuccess({
-        resourceId,
-        objectId,
-        format,
-        scale,
-        contentType,
-        data: base64Data,
-        size: resourceResponse.data.length,
-      }, `Exported ${format} (${resourceResponse.data.length} bytes)`);
+      return ResponseFormatter.formatSuccess(
+        {
+          resourceId,
+          objectId,
+          format,
+          scale,
+          contentType,
+          data: base64Data,
+          size: resourceResponse.data.length,
+        },
+        `Exported ${format} (${resourceResponse.data.length} bytes)`
+      );
     } catch (error) {
       // Check if this is a storage-related error
       if (this.isStorageError(error)) {
@@ -204,32 +210,30 @@ export class ExportsAPIClient extends BaseAPIClient {
    * Batch export multiple objects
    */
   async batchExport(params: BatchExportParams): Promise<MCPResponse> {
-    const {
-      fileId,
-      pageId,
-      objectIds,
-      format = 'png',
-      scale = 1,
-    } = params;
+    const { fileId, pageId, objectIds, format = 'png', scale = 1 } = params;
 
     try {
       await this.ensureAuthenticated();
 
       const profileId = this.getProfileId();
       if (!profileId) {
-        return ResponseFormatter.formatError('Profile ID not available. Please authenticate first.');
+        return ResponseFormatter.formatError(
+          'Profile ID not available. Please authenticate first.'
+        );
       }
 
       const authToken = this.getAuthToken();
       if (!authToken) {
-        return ResponseFormatter.formatError('Auth token not available. Please authenticate first.');
+        return ResponseFormatter.formatError(
+          'Auth token not available. Please authenticate first.'
+        );
       }
 
       const results: ExportResult[] = [];
       const exportUrl = `${this.config.baseURL}/export`;
 
       // Create batch export payload
-      const exports = objectIds.map(objectId => ({
+      const exports = objectIds.map((objectId) => ({
         '~:type': `~:${format}`,
         '~:suffix': '',
         '~:scale': scale,
@@ -246,14 +250,20 @@ export class ExportsAPIClient extends BaseAPIClient {
         '~:cmd': '~:export-shapes',
       };
 
-      logger.debug('Creating batch export', { fileId, pageId, objectCount: objectIds.length, format, scale });
+      logger.debug('Creating batch export', {
+        fileId,
+        pageId,
+        objectCount: objectIds.length,
+        format,
+        scale,
+      });
 
       try {
         const exportResponse = await axios.post(exportUrl, payload, {
           headers: {
             'Content-Type': 'application/transit+json',
-            'Accept': 'application/transit+json',
-            'Cookie': `auth-token=${authToken}`,
+            Accept: 'application/transit+json',
+            Cookie: `auth-token=${authToken}`,
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
           },
         });
@@ -270,7 +280,7 @@ export class ExportsAPIClient extends BaseAPIClient {
             scale,
           });
         }
-      } catch (batchError) {
+      } catch {
         // Fallback to individual exports if batch fails
         for (const objectId of objectIds) {
           try {
@@ -310,19 +320,22 @@ export class ExportsAPIClient extends BaseAPIClient {
         }
       }
 
-      const successful = results.filter(r => !r.error).length;
-      const failed = results.filter(r => r.error).length;
+      const successful = results.filter((r) => !r.error).length;
+      const failed = results.filter((r) => r.error).length;
 
-      return ResponseFormatter.formatSuccess({
-        results,
-        summary: {
-          total: objectIds.length,
-          successful,
-          failed,
-          format,
-          scale,
+      return ResponseFormatter.formatSuccess(
+        {
+          results,
+          summary: {
+            total: objectIds.length,
+            successful,
+            failed,
+            format,
+            scale,
+          },
         },
-      }, `Batch export: ${successful} successful, ${failed} failed`);
+        `Batch export: ${successful} successful, ${failed} failed`
+      );
     } catch (error) {
       if (this.isStorageError(error)) {
         return this.formatStorageError(`batchExport`, error);
@@ -335,32 +348,27 @@ export class ExportsAPIClient extends BaseAPIClient {
    * Export entire page
    */
   async exportPage(params: PageExportParams): Promise<MCPResponse> {
-    const {
-      fileId,
-      pageId,
-      format = 'pdf',
-      scale = 1,
-    } = params;
+    const { fileId, pageId, format = 'pdf', scale = 1 } = params;
 
     try {
       await this.ensureAuthenticated();
 
       const profileId = this.getProfileId();
       if (!profileId) {
-        return ResponseFormatter.formatError('Profile ID not available. Please authenticate first.');
+        return ResponseFormatter.formatError(
+          'Profile ID not available. Please authenticate first.'
+        );
       }
 
       const authToken = this.getAuthToken();
       if (!authToken) {
-        return ResponseFormatter.formatError('Auth token not available. Please authenticate first.');
+        return ResponseFormatter.formatError(
+          'Auth token not available. Please authenticate first.'
+        );
       }
 
       // Get page root frame
-      const fileResponse = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const fileResponse = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(fileResponse) as {
         data?: {
@@ -374,7 +382,7 @@ export class ExportsAPIClient extends BaseAPIClient {
       }
 
       // Find root frame (uuid-00000000-0000-0000-0000-000000000000 pattern)
-      const rootFrame = Object.entries(page.objects || {}).find(([id, obj]) => {
+      const rootFrame = Object.entries(page.objects || {}).find(([_id, obj]) => {
         const o = obj as Record<string, unknown>;
         return o['type'] === 'frame' && !o['parentId'];
       });
@@ -408,15 +416,13 @@ export class ExportsAPIClient extends BaseAPIClient {
 
       const profileId = this.getProfileId();
       if (!profileId) {
-        return ResponseFormatter.formatError('Profile ID not available. Please authenticate first.');
+        return ResponseFormatter.formatError(
+          'Profile ID not available. Please authenticate first.'
+        );
       }
 
       // Get file pages
-      const fileResponse = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const fileResponse = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(fileResponse) as {
         data?: {
@@ -424,8 +430,8 @@ export class ExportsAPIClient extends BaseAPIClient {
         };
       };
 
-      const allPageIds = pageIds || (fileData.data?.pages || []);
-      
+      const allPageIds = pageIds || fileData.data?.pages || [];
+
       if (allPageIds.length === 0) {
         return ResponseFormatter.formatError('No pages found in file');
       }
@@ -459,14 +465,17 @@ export class ExportsAPIClient extends BaseAPIClient {
         }
       }
 
-      return ResponseFormatter.formatSuccess({
-        fileId,
-        results,
-        summary: {
-          totalPages: allPageIds.length,
-          exported: results.filter(r => !r.error).length,
+      return ResponseFormatter.formatSuccess(
+        {
+          fileId,
+          results,
+          summary: {
+            totalPages: allPageIds.length,
+            exported: results.filter((r) => !r.error).length,
+          },
         },
-      }, `Exported ${results.filter(r => !r.error).length} pages as PDF`);
+        `Exported ${results.filter((r) => !r.error).length} pages as PDF`
+      );
     } catch (error) {
       if (this.isStorageError(error)) {
         return this.formatStorageError(`exportFileAsPdf`, error);
@@ -479,30 +488,28 @@ export class ExportsAPIClient extends BaseAPIClient {
    * Get export URL without downloading the data
    */
   async getExportUrl(params: ExportParams): Promise<MCPResponse> {
-    const {
-      fileId,
-      pageId,
-      objectId,
-      format = 'png',
-      scale = 1,
-    } = params;
+    const { fileId, pageId, objectId, format = 'png', scale = 1 } = params;
 
     try {
       await this.ensureAuthenticated();
 
       const profileId = this.getProfileId();
       if (!profileId) {
-        return ResponseFormatter.formatError('Profile ID not available. Please authenticate first.');
+        return ResponseFormatter.formatError(
+          'Profile ID not available. Please authenticate first.'
+        );
       }
 
       const authToken = this.getAuthToken();
       if (!authToken) {
-        return ResponseFormatter.formatError('Auth token not available. Please authenticate first.');
+        return ResponseFormatter.formatError(
+          'Auth token not available. Please authenticate first.'
+        );
       }
 
       // Create export job
       const exportUrl = `${this.config.baseURL}/export`;
-      
+
       const payload = {
         '~:wait': true,
         '~:exports': [
@@ -523,8 +530,8 @@ export class ExportsAPIClient extends BaseAPIClient {
       const exportResponse = await axios.post(exportUrl, payload, {
         headers: {
           'Content-Type': 'application/transit+json',
-          'Accept': 'application/transit+json',
-          'Cookie': `auth-token=${authToken}`,
+          Accept: 'application/transit+json',
+          Cookie: `auth-token=${authToken}`,
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         },
       });
@@ -536,13 +543,16 @@ export class ExportsAPIClient extends BaseAPIClient {
         return ResponseFormatter.formatError('Export failed: Resource ID not returned');
       }
 
-      return ResponseFormatter.formatSuccess({
-        resourceId,
-        format,
-        scale,
-        exportUrl,
-        note: 'Use the resourceId to download the exported asset',
-      }, `Export created: ${resourceId}`);
+      return ResponseFormatter.formatSuccess(
+        {
+          resourceId,
+          format,
+          scale,
+          exportUrl,
+          note: 'Use the resourceId to download the exported asset',
+        },
+        `Export created: ${resourceId}`
+      );
     } catch (error) {
       if (this.isStorageError(error)) {
         return this.formatStorageError(`getExportUrl`, error);
@@ -588,11 +598,14 @@ export class ExportsAPIClient extends BaseAPIClient {
         }
       }
 
-      return ResponseFormatter.formatSuccess({
-        objectId,
-        results,
-        scales,
-      }, `Exported at ${scales.length} scales`);
+      return ResponseFormatter.formatSuccess(
+        {
+          objectId,
+          results,
+          scales,
+        },
+        `Exported at ${scales.length} scales`
+      );
     } catch (error) {
       return ErrorHandler.handle(error, `exportMultiScale(${fileId}, ${pageId}, ${objectId})`);
     }
@@ -601,7 +614,10 @@ export class ExportsAPIClient extends BaseAPIClient {
   /**
    * Export with multiple formats
    */
-  async exportMultiFormat(params: ExportParams, formats: ExportFormat[] = ['png', 'svg']): Promise<MCPResponse> {
+  async exportMultiFormat(
+    params: ExportParams,
+    formats: ExportFormat[] = ['png', 'svg']
+  ): Promise<MCPResponse> {
     const { fileId, pageId, objectId, scale = 1 } = params;
 
     try {
@@ -635,11 +651,14 @@ export class ExportsAPIClient extends BaseAPIClient {
         }
       }
 
-      return ResponseFormatter.formatSuccess({
-        objectId,
-        results,
-        formats,
-      }, `Exported in ${formats.length} formats`);
+      return ResponseFormatter.formatSuccess(
+        {
+          objectId,
+          results,
+          formats,
+        },
+        `Exported in ${formats.length} formats`
+      );
     } catch (error) {
       return ErrorHandler.handle(error, `exportMultiFormat(${fileId}, ${pageId}, ${objectId})`);
     }
@@ -650,11 +669,7 @@ export class ExportsAPIClient extends BaseAPIClient {
    */
   async listExportableObjects(fileId: string, pageId: string): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as {
         data?: {
@@ -668,8 +683,18 @@ export class ExportsAPIClient extends BaseAPIClient {
       }
 
       // Filter for exportable objects (frames, groups, components, etc.)
-      const exportableTypes = ['frame', 'group', 'rect', 'circle', 'path', 'text', 'image', 'svg-raw', 'bool'];
-      
+      const exportableTypes = [
+        'frame',
+        'group',
+        'rect',
+        'circle',
+        'path',
+        'text',
+        'image',
+        'svg-raw',
+        'bool',
+      ];
+
       const objects = Object.entries(page.objects || {})
         .filter(([, obj]) => {
           const type = (obj as Record<string, unknown>)['type'] as string;
@@ -701,11 +726,7 @@ export class ExportsAPIClient extends BaseAPIClient {
    */
   async getExportSettings(fileId: string, pageId: string, objectId: string): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as {
         data?: {
@@ -725,13 +746,16 @@ export class ExportsAPIClient extends BaseAPIClient {
 
       const exports = object['exports'] || [];
 
-      return ResponseFormatter.formatSuccess({
-        objectId,
-        name: object['name'],
-        type: object['type'],
-        exports,
-        hasSettings: (exports as unknown[]).length > 0,
-      }, `Export settings for ${object['name']}`);
+      return ResponseFormatter.formatSuccess(
+        {
+          objectId,
+          name: object['name'],
+          type: object['type'],
+          exports,
+          hasSettings: (exports as unknown[]).length > 0,
+        },
+        `Export settings for ${object['name']}`
+      );
     } catch (error) {
       return ErrorHandler.handle(error, `getExportSettings(${fileId}, ${pageId}, ${objectId})`);
     }
@@ -746,11 +770,13 @@ export class ExportsAPIClient extends BaseAPIClient {
 
       const authToken = this.getAuthToken();
       if (!authToken) {
-        return ResponseFormatter.formatError('Auth token not available. Please authenticate first.');
+        return ResponseFormatter.formatError(
+          'Auth token not available. Please authenticate first.'
+        );
       }
 
       const exportUrl = `${this.config.baseURL}/export`;
-      
+
       const resourcePayload = {
         '~:wait': false,
         '~:cmd': '~:get-resource',
@@ -760,8 +786,8 @@ export class ExportsAPIClient extends BaseAPIClient {
       const resourceResponse = await axios.post(exportUrl, resourcePayload, {
         headers: {
           'Content-Type': 'application/transit+json',
-          'Accept': '*/*',
-          'Cookie': `auth-token=${authToken}`,
+          Accept: '*/*',
+          Cookie: `auth-token=${authToken}`,
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
         },
         responseType: 'arraybuffer',
@@ -770,12 +796,15 @@ export class ExportsAPIClient extends BaseAPIClient {
       const contentType = resourceResponse.headers['content-type'] || 'application/octet-stream';
       const base64Data = Buffer.from(resourceResponse.data).toString('base64');
 
-      return ResponseFormatter.formatSuccess({
-        resourceId,
-        contentType,
-        data: base64Data,
-        size: resourceResponse.data.length,
-      }, `Downloaded export (${resourceResponse.data.length} bytes)`);
+      return ResponseFormatter.formatSuccess(
+        {
+          resourceId,
+          contentType,
+          data: base64Data,
+          size: resourceResponse.data.length,
+        },
+        `Downloaded export (${resourceResponse.data.length} bytes)`
+      );
     } catch (error) {
       if (this.isStorageError(error)) {
         return this.formatStorageError(`downloadExport`, error);
@@ -785,11 +814,226 @@ export class ExportsAPIClient extends BaseAPIClient {
   }
 
   /**
+   * Preview a page or frame - optimized for AI visual feedback
+   * ISSUE-003: Visual Preview capability
+   *
+   * Returns a PNG image that can be displayed or analyzed by vision models.
+   * Automatically finds the best frame to preview or exports the entire page.
+   */
+  async preview(params: {
+    fileId: string;
+    pageId: string;
+    objectId?: string; // Optional specific object to preview
+    maxWidth?: number; // Max width for output (default 800)
+    maxHeight?: number; // Max height for output (default 600)
+    quality?: 'low' | 'medium' | 'high'; // Affects scale
+  }): Promise<MCPResponse> {
+    const {
+      fileId,
+      pageId,
+      objectId,
+      maxWidth = 800,
+      maxHeight = 600,
+      quality = 'medium',
+    } = params;
+
+    try {
+      await this.ensureAuthenticated();
+
+      const profileId = this.getProfileId();
+      if (!profileId) {
+        return ResponseFormatter.formatError(
+          'Profile ID not available. Please authenticate first.'
+        );
+      }
+
+      const authToken = this.getAuthToken();
+      if (!authToken) {
+        return ResponseFormatter.formatError(
+          'Auth token not available. Please authenticate first.'
+        );
+      }
+
+      // Get file data to find objects
+      const fileResponse = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
+
+      const fileData = this.normalizeTransitResponse(fileResponse) as {
+        name?: string;
+        data?: {
+          pagesIndex?: Record<
+            string,
+            {
+              name?: string;
+              objects?: Record<string, unknown>;
+            }
+          >;
+        };
+      };
+
+      const page = fileData.data?.pagesIndex?.[pageId];
+      if (!page) {
+        return ResponseFormatter.formatError(`Page not found: ${pageId}`);
+      }
+
+      // Find the object to preview
+      let targetObjectId = objectId;
+      let targetObject: Record<string, unknown> | undefined;
+
+      if (objectId) {
+        // Use the specified object
+        targetObject = page.objects?.[objectId] as Record<string, unknown> | undefined;
+        if (!targetObject) {
+          return ResponseFormatter.formatError(`Object not found: ${objectId}`);
+        }
+      } else {
+        // Find the best frame to preview (first frame, or largest)
+        const frames = Object.entries(page.objects || {})
+          .filter(([, obj]) => {
+            const o = obj as Record<string, unknown>;
+            return o['type'] === 'frame' && !o['hidden'];
+          })
+          .map(([id, obj]) => {
+            const o = obj as Record<string, unknown>;
+            const width = (o['width'] as number) || 0;
+            const height = (o['height'] as number) || 0;
+            return { id, width, height, area: width * height, obj: o };
+          })
+          .sort((a, b) => b.area - a.area); // Sort by area, largest first
+
+        if (frames.length > 0) {
+          targetObjectId = frames[0].id;
+          targetObject = frames[0].obj;
+        }
+      }
+
+      if (!targetObjectId || !targetObject) {
+        return ResponseFormatter.formatError(
+          'No suitable object found for preview. Try specifying an objectId.'
+        );
+      }
+
+      // Calculate scale based on quality and size constraints
+      const objWidth = (targetObject['width'] as number) || maxWidth;
+      const objHeight = (targetObject['height'] as number) || maxHeight;
+
+      let scale: number;
+      switch (quality) {
+        case 'low':
+          scale = Math.min(0.5, maxWidth / objWidth, maxHeight / objHeight);
+          break;
+        case 'high':
+          scale = Math.min(2, maxWidth / objWidth, maxHeight / objHeight);
+          break;
+        default: // medium
+          scale = Math.min(1, maxWidth / objWidth, maxHeight / objHeight);
+      }
+      scale = Math.max(0.1, scale); // Ensure minimum scale
+
+      // Export the object
+      const exportUrl = `${this.config.baseURL}/export`;
+
+      const payload = {
+        '~:wait': true,
+        '~:exports': [
+          {
+            '~:type': '~:png',
+            '~:suffix': '',
+            '~:scale': scale,
+            '~:page-id': `~u${pageId}`,
+            '~:file-id': `~u${fileId}`,
+            '~:name': '',
+            '~:object-id': `~u${targetObjectId}`,
+          },
+        ],
+        '~:profile-id': `~u${profileId}`,
+        '~:cmd': '~:export-shapes',
+      };
+
+      logger.debug('Creating preview export', { fileId, pageId, targetObjectId, scale, quality });
+
+      const exportResponse = await axios.post(exportUrl, payload, {
+        headers: {
+          'Content-Type': 'application/transit+json',
+          Accept: 'application/transit+json',
+          Cookie: `auth-token=${authToken}`,
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        },
+      });
+
+      const exportData = exportResponse.data;
+      const resourceId = exportData['~:id'];
+
+      if (!resourceId) {
+        return ResponseFormatter.formatError(
+          'Preview export failed: Resource ID not returned. Storage may not be configured.'
+        );
+      }
+
+      // Get the actual image data
+      const resourcePayload = {
+        '~:wait': false,
+        '~:cmd': '~:get-resource',
+        '~:id': resourceId,
+      };
+
+      const resourceResponse = await axios.post(exportUrl, resourcePayload, {
+        headers: {
+          'Content-Type': 'application/transit+json',
+          Accept: '*/*',
+          Cookie: `auth-token=${authToken}`,
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+        },
+        responseType: 'arraybuffer',
+      });
+
+      const base64Data = Buffer.from(resourceResponse.data).toString('base64');
+      const sizeKB = Math.round(resourceResponse.data.length / 1024);
+
+      // Return preview data with metadata
+      return ResponseFormatter.formatSuccess(
+        {
+          preview: {
+            data: base64Data,
+            contentType: 'image/png',
+            size: resourceResponse.data.length,
+            sizeKB,
+          },
+          metadata: {
+            fileName: fileData.name,
+            pageName: page.name,
+            objectId: targetObjectId,
+            objectName: targetObject['name'],
+            objectType: targetObject['type'],
+            originalWidth: objWidth,
+            originalHeight: objHeight,
+            scale,
+            quality,
+            outputWidth: Math.round(objWidth * scale),
+            outputHeight: Math.round(objHeight * scale),
+          },
+          // Provide image as data URI for easy display
+          dataUri: `data:image/png;base64,${base64Data}`,
+        },
+        `Preview generated: ${targetObject['name'] || 'Untitled'} (${sizeKB}KB)`
+      );
+    } catch (error) {
+      if (this.isStorageError(error)) {
+        return this.formatStorageError(`preview`, error);
+      }
+      return ErrorHandler.handle(error, `preview(${fileId}, ${pageId})`);
+    }
+  }
+
+  /**
    * Get supported export formats
    */
   getSupportedFormats(): MCPResponse {
     const formats = [
-      { format: 'png', description: 'Portable Network Graphics - Raster format with transparency', scales: [0.5, 1, 2, 3, 4] },
+      {
+        format: 'png',
+        description: 'Portable Network Graphics - Raster format with transparency',
+        scales: [0.5, 1, 2, 3, 4],
+      },
       { format: 'svg', description: 'Scalable Vector Graphics - Vector format', scales: [1] },
       { format: 'pdf', description: 'Portable Document Format - Print-ready', scales: [1, 2] },
       { format: 'jpeg', description: 'JPEG Image - Lossy compression', scales: [0.5, 1, 2, 3, 4] },

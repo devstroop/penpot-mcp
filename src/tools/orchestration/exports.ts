@@ -22,7 +22,9 @@ export class ExportsTool {
     switch (action) {
       case 'export':
         if (!params.fileId || !params.pageId || !params.objectId) {
-          return ResponseFormatter.formatError('fileId, pageId and objectId are required for export action');
+          return ResponseFormatter.formatError(
+            'fileId, pageId and objectId are required for export action'
+          );
         }
         return client.exports.exportObject({
           fileId: params.fileId,
@@ -33,8 +35,15 @@ export class ExportsTool {
         });
 
       case 'batch':
-        if (!params.fileId || !params.pageId || !params.objectIds || params.objectIds.length === 0) {
-          return ResponseFormatter.formatError('fileId, pageId and objectIds array are required for batch action');
+        if (
+          !params.fileId ||
+          !params.pageId ||
+          !params.objectIds ||
+          params.objectIds.length === 0
+        ) {
+          return ResponseFormatter.formatError(
+            'fileId, pageId and objectIds array are required for batch action'
+          );
         }
         return client.exports.batchExport({
           fileId: params.fileId,
@@ -63,7 +72,9 @@ export class ExportsTool {
 
       case 'multi_scale':
         if (!params.fileId || !params.pageId || !params.objectId) {
-          return ResponseFormatter.formatError('fileId, pageId and objectId are required for multi_scale action');
+          return ResponseFormatter.formatError(
+            'fileId, pageId and objectId are required for multi_scale action'
+          );
         }
         return client.exports.exportMultiScale(
           {
@@ -77,7 +88,9 @@ export class ExportsTool {
 
       case 'multi_format':
         if (!params.fileId || !params.pageId || !params.objectId) {
-          return ResponseFormatter.formatError('fileId, pageId and objectId are required for multi_format action');
+          return ResponseFormatter.formatError(
+            'fileId, pageId and objectId are required for multi_format action'
+          );
         }
         return client.exports.exportMultiFormat(
           {
@@ -97,7 +110,9 @@ export class ExportsTool {
 
       case 'settings':
         if (!params.fileId || !params.pageId || !params.objectId) {
-          return ResponseFormatter.formatError('fileId, pageId and objectId are required for settings action');
+          return ResponseFormatter.formatError(
+            'fileId, pageId and objectId are required for settings action'
+          );
         }
         return client.exports.getExportSettings(params.fileId, params.pageId, params.objectId);
 
@@ -109,6 +124,19 @@ export class ExportsTool {
 
       case 'formats':
         return client.exports.getSupportedFormats();
+
+      case 'preview':
+        if (!params.fileId || !params.pageId) {
+          return ResponseFormatter.formatError('fileId and pageId are required for preview action');
+        }
+        return client.exports.preview({
+          fileId: params.fileId,
+          pageId: params.pageId,
+          objectId: params.objectId,
+          maxWidth: params.maxWidth,
+          maxHeight: params.maxHeight,
+          quality: params.quality,
+        });
 
       default:
         return ResponseFormatter.formatError(`Unknown action: ${action}`);

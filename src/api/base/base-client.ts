@@ -1,4 +1,9 @@
-import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosInstance,
+  AxiosError,
+  AxiosRequestConfig,
+  InternalAxiosRequestConfig,
+} from 'axios';
 import { logger } from '../../logger.js';
 
 export interface MCPResponse {
@@ -44,7 +49,7 @@ export abstract class BaseAPIClient {
       baseURL: this.config.baseURL,
       timeout: this.config.timeout,
       headers: {
-        'Accept': 'application/json, application/transit+json',
+        Accept: 'application/json, application/transit+json',
         'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
       },
@@ -125,13 +130,13 @@ export abstract class BaseAPIClient {
   private sanitizeHeaders(headers: Record<string, unknown>): Record<string, unknown> {
     const sanitized = { ...headers };
     const sensitiveKeys = ['cookie', 'authorization', 'auth-token', 'x-api-key'];
-    
+
     for (const key of Object.keys(sanitized)) {
-      if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
+      if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk))) {
         sanitized[key] = '[REDACTED]';
       }
     }
-    
+
     return sanitized;
   }
 
@@ -140,7 +145,7 @@ export abstract class BaseAPIClient {
    */
   private truncateBody(data: unknown, maxLength = 500): string {
     if (data === undefined || data === null) return '';
-    
+
     let str: string;
     if (typeof data === 'string') {
       str = data;
@@ -151,7 +156,7 @@ export abstract class BaseAPIClient {
         str = String(data);
       }
     }
-    
+
     if (str.length > maxLength) {
       return str.slice(0, maxLength) + `... (${str.length - maxLength} more chars)`;
     }
@@ -172,18 +177,19 @@ export abstract class BaseAPIClient {
     if (this.isCloudFlareError(error.response)) {
       throw new Error(
         'CloudFlare protection detected. Please log in via browser at ' +
-        'https://design.penpot.app first to complete verification.'
+          'https://design.penpot.app first to complete verification.'
       );
     }
 
     // Handle authentication errors with retry
     if (status === 401 || status === 403) {
-      const retryCount = (error.config as AxiosRequestConfig & { __retryCount?: number })?.__retryCount ?? 0;
-      
+      const retryCount =
+        (error.config as AxiosRequestConfig & { __retryCount?: number })?.__retryCount ?? 0;
+
       if (retryCount < (this.config.retryAttempts ?? 3)) {
         logger.info('Authentication failed, attempting re-login');
         await this.authenticate();
-        
+
         if (error.config) {
           const config = error.config as AxiosRequestConfig & { __retryCount?: number };
           config.__retryCount = retryCount + 1;
@@ -197,17 +203,17 @@ export abstract class BaseAPIClient {
 
   private isCloudFlareError(response?: AxiosError['response']): boolean {
     if (!response) return false;
-    
+
     const serverHeader = response.headers?.['server']?.toString().toLowerCase() || '';
     const cfRay = response.headers?.['cf-ray'];
-    
+
     if (serverHeader.includes('cloudflare') || cfRay) {
       return true;
     }
-    
+
     const text = typeof response.data === 'string' ? response.data.toLowerCase() : '';
     const indicators = ['cloudflare', 'cf-ray', 'attention required', 'checking your browser'];
-    return indicators.some(ind => text.includes(ind));
+    return indicators.some((ind) => text.includes(ind));
   }
 
   /**
@@ -215,7 +221,7 @@ export abstract class BaseAPIClient {
    */
   async authenticate(): Promise<void> {
     const url = `${this.config.baseURL}/rpc/command/login-with-password`;
-    
+
     const payload = {
       '~:email': this.config.username,
       '~:password': this.config.password,
@@ -299,7 +305,7 @@ export abstract class BaseAPIClient {
       '^W': 'point',
       '^R': 'matrix',
     };
-    
+
     if (Array.isArray(data)) {
       // Transit array format: ["^ ", "~:key1", value1, "~:key2", value2, ...]
       if (data[0] === '^ ') {
@@ -316,9 +322,9 @@ export abstract class BaseAPIClient {
         }
         return result;
       }
-      return data.map(item => this.normalizeTransitResponse(item));
+      return data.map((item) => this.normalizeTransitResponse(item));
     }
-    
+
     if (typeof data === 'object' && data !== null) {
       const result: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(data)) {
@@ -337,13 +343,13 @@ export abstract class BaseAPIClient {
       }
       return result;
     }
-    
+
     if (typeof data === 'string') {
       // Remove Transit prefixes
       if (data.startsWith('~u')) return data.slice(2); // UUID
       if (data.startsWith('~:')) return data.slice(2); // Keyword
     }
-    
+
     return data;
   }
 
@@ -352,17 +358,17 @@ export abstract class BaseAPIClient {
    */
   protected toTransitPayload(payload: Record<string, unknown>): Record<string, unknown> {
     const result: Record<string, unknown> = {};
-    
+
     for (const [key, value] of Object.entries(payload)) {
       const transitKey = key.startsWith('~:') ? key : `~:${key}`;
-      
+
       if (typeof value === 'string' && this.isUUID(value)) {
         result[transitKey] = `~u${value}`;
       } else {
         result[transitKey] = value;
       }
     }
-    
+
     return result;
   }
 
@@ -380,18 +386,22 @@ export abstract class BaseAPIClient {
     return response.data;
   }
 
-  protected async post<T>(endpoint: string, data?: unknown, useTransit: boolean = false): Promise<T> {
+  protected async post<T>(
+    endpoint: string,
+    data?: unknown,
+    useTransit: boolean = false
+  ): Promise<T> {
     await this.ensureAuthenticated();
-    
+
     const headers: Record<string, string> = {};
     let payload = data;
-    
+
     if (useTransit && typeof data === 'object' && data !== null) {
       headers['Content-Type'] = 'application/transit+json';
       headers['Accept'] = 'application/transit+json';
       payload = this.toTransitPayload(data as Record<string, unknown>);
     }
-    
+
     const response = await this.client.post<T>(endpoint, payload, { headers });
     return response.data;
   }
@@ -402,13 +412,51 @@ export abstract class BaseAPIClient {
    */
   protected async postTransit<T>(endpoint: string, data: unknown): Promise<T> {
     await this.ensureAuthenticated();
-    
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/transit+json',
-      'Accept': 'application/transit+json',
+      Accept: 'application/transit+json',
     };
-    
+
     const response = await this.client.post<T>(endpoint, data, { headers });
+    return response.data;
+  }
+
+  /**
+   * Post with multipart/form-data for file uploads
+   */
+  protected async postFormData<T>(endpoint: string, formData: FormData): Promise<T> {
+    await this.ensureAuthenticated();
+
+    // Get headers from form-data package (includes boundary)
+    const formHeaders = (
+      formData as FormData & { getHeaders: () => Record<string, string> }
+    ).getHeaders();
+
+    const response = await this.client.post<T>(endpoint, formData, {
+      headers: {
+        ...formHeaders,
+        Accept: 'application/json, application/transit+json',
+      },
+    });
+    return response.data;
+  }
+
+  /**
+   * Post with Node.js form-data package (for font uploads etc.)
+   */
+  protected async postNodeFormData<T>(endpoint: string, formData: import('form-data')): Promise<T> {
+    await this.ensureAuthenticated();
+
+    // Get headers from form-data package (includes boundary)
+    const formHeaders = formData.getHeaders();
+
+    const response = await this.client.post<T>(endpoint, formData, {
+      headers: {
+        ...formHeaders,
+        Accept: 'application/json, application/transit+json',
+      },
+    });
     return response.data;
   }
 

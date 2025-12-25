@@ -46,9 +46,16 @@ export class ComponentsTool {
 
       case 'create':
         if (!params.pageId || !params.objectId) {
-          return ResponseFormatter.formatError('pageId and objectId are required for create action');
+          return ResponseFormatter.formatError(
+            'pageId and objectId are required for create action'
+          );
         }
-        return client.components.createComponent(fileId, params.pageId, params.objectId, params.name);
+        return client.components.createComponent(
+          fileId,
+          params.pageId,
+          params.objectId,
+          params.name
+        );
 
       case 'delete':
         if (!params.componentId) {
@@ -58,34 +65,71 @@ export class ComponentsTool {
 
       case 'rename':
         if (!params.componentId || !params.name) {
-          return ResponseFormatter.formatError('componentId and name are required for rename action');
+          return ResponseFormatter.formatError(
+            'componentId and name are required for rename action'
+          );
         }
         return client.components.renameComponent(fileId, params.componentId, params.name);
 
       case 'annotate':
         if (!params.componentId || !params.annotation) {
-          return ResponseFormatter.formatError('componentId and annotation are required for annotate action');
+          return ResponseFormatter.formatError(
+            'componentId and annotation are required for annotate action'
+          );
         }
-        return client.components.updateComponentAnnotation(fileId, params.componentId, params.annotation);
+        return client.components.updateComponentAnnotation(
+          fileId,
+          params.componentId,
+          params.annotation
+        );
 
       case 'stats':
         return client.components.getComponentStats(fileId);
 
       case 'detach':
         if (!params.pageId || !params.instanceId) {
-          return ResponseFormatter.formatError('pageId and instanceId are required for detach action');
+          return ResponseFormatter.formatError(
+            'pageId and instanceId are required for detach action'
+          );
         }
         return client.components.detachInstance(fileId, params.pageId, params.instanceId);
 
       case 'reset':
         if (!params.pageId || !params.instanceId) {
-          return ResponseFormatter.formatError('pageId and instanceId are required for reset action');
+          return ResponseFormatter.formatError(
+            'pageId and instanceId are required for reset action'
+          );
         }
         return client.components.resetInstance(fileId, params.pageId, params.instanceId);
 
+      case 'instantiate':
+        if (
+          !params.sourceFileId ||
+          !params.componentId ||
+          !params.pageId ||
+          params.x === undefined ||
+          params.y === undefined
+        ) {
+          return ResponseFormatter.formatError(
+            'sourceFileId, componentId, pageId, x, and y are required for instantiate action'
+          );
+        }
+        return client.components.instantiateComponent(
+          fileId, // targetFileId
+          params.pageId, // targetPageId
+          params.sourceFileId,
+          params.componentId,
+          {
+            x: params.x,
+            y: params.y,
+            name: params.name,
+            frameId: params.frameId,
+          }
+        );
+
       default:
         return ResponseFormatter.formatError(
-          `Unknown action: ${action}. Use: list, get, search, instances, structure, create, delete, rename, annotate, stats, detach, reset`
+          `Unknown action: ${action}. Use: list, get, search, instances, structure, create, delete, rename, annotate, stats, detach, reset, instantiate`
         );
     }
   }

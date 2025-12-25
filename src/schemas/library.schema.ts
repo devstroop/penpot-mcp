@@ -30,17 +30,21 @@ export const libraryParamsSchema = z
       if (data.action === 'shared') {
         return !!data.teamId;
       }
-      // link/unlink require fileId and libraryId
-      if (['link', 'unlink'].includes(data.action)) {
+      // link/unlink/sync require fileId and libraryId
+      if (['link', 'unlink', 'sync'].includes(data.action)) {
         return !!data.fileId && !!data.libraryId;
       }
-      // linked, publish, unpublish, summary, sync, colors, typography, components require fileId
-      if (['linked', 'publish', 'unpublish', 'summary', 'sync', 'colors', 'typography', 'components'].includes(data.action)) {
+      // linked, publish, unpublish require fileId
+      if (['linked', 'publish', 'unpublish'].includes(data.action)) {
         return !!data.fileId;
       }
-      // search requires query
+      // summary, colors, typography, components require libraryId
+      if (['summary', 'colors', 'typography', 'components'].includes(data.action)) {
+        return !!data.libraryId;
+      }
+      // search requires teamId
       if (data.action === 'search') {
-        return !!data.query;
+        return !!data.teamId;
       }
       return true;
     },

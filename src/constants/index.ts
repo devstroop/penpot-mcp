@@ -22,6 +22,13 @@ export const TOOL_NAMES = {
   SEARCH: 'search',
   ANALYZE: 'analyze',
   SHAPES: 'shapes',
+  MEDIA: 'media',
+  FONTS: 'fonts',
+  SHARE: 'share',
+  WEBHOOKS: 'webhooks',
+  TEMPLATES: 'templates',
+  TRASH: 'trash',
+  ACCESS_TOKENS: 'access_tokens',
   // Legacy tools (backward compatibility)
   NAVIGATE: 'navigate',
   INSPECT: 'inspect',
@@ -264,7 +271,21 @@ export const ACTIONS = {
     'compare',
   ] as const,
 
-  SHAPES: ['add_frame', 'add_rectangle', 'add_ellipse', 'delete', 'list'] as const,
+  SHAPES: ['add_frame', 'add_rectangle', 'add_ellipse', 'add_text', 'delete', 'list'] as const,
+
+  MEDIA: ['upload_url', 'upload_base64', 'list', 'delete', 'add_image'] as const,
+
+  FONTS: ['list', 'upload', 'delete', 'delete_variant'] as const,
+
+  SHARE: ['list', 'create', 'delete'] as const,
+
+  WEBHOOKS: ['list', 'create', 'update', 'delete'] as const,
+
+  TEMPLATES: ['list', 'clone'] as const,
+
+  TRASH: ['list', 'restore', 'delete_permanently'] as const,
+
+  ACCESS_TOKENS: ['list', 'create', 'delete'] as const,
 
   // Legacy
   NAVIGATE: ['projects', 'files', 'pages', 'search'] as const,

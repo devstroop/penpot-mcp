@@ -57,17 +57,12 @@ export interface ObjectData {
  * Handles all file-related operations for Penpot
  */
 export class FilesAPIClient extends BaseAPIClient {
-  
   /**
    * Get file details and content
    */
   async getFile(fileId: string): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
 
@@ -84,11 +79,7 @@ export class FilesAPIClient extends BaseAPIClient {
    */
   async getFileMeta(fileId: string): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
 
@@ -96,15 +87,11 @@ export class FilesAPIClient extends BaseAPIClient {
       const meta = {
         id: fileData.id,
         name: fileData.name,
-        pageCount: fileData.data?.pagesIndex
-          ? Object.keys(fileData.data.pagesIndex).length
-          : 0,
+        pageCount: fileData.data?.pagesIndex ? Object.keys(fileData.data.pagesIndex).length : 0,
         componentCount: fileData.data?.componentsIndex
           ? Object.keys(fileData.data.componentsIndex).length
           : 0,
-        colorCount: fileData.data?.colorsIndex
-          ? Object.keys(fileData.data.colorsIndex).length
-          : 0,
+        colorCount: fileData.data?.colorsIndex ? Object.keys(fileData.data.colorsIndex).length : 0,
         typographyCount: fileData.data?.typographiesIndex
           ? Object.keys(fileData.data.typographiesIndex).length
           : 0,
@@ -125,15 +112,11 @@ export class FilesAPIClient extends BaseAPIClient {
         '~:project-id': `~u${projectId}`,
         '~:name': name,
       };
-      
-      const response = await this.post<unknown>(
-        '/rpc/command/create-file',
-        payload,
-        true
-      );
-      
+
+      const response = await this.post<unknown>('/rpc/command/create-file', payload, true);
+
       const file = this.normalizeTransitResponse(response);
-      
+
       return ResponseFormatter.formatSuccess(file, `File "${name}" created successfully`);
     } catch (error) {
       logger.error('Failed to create file', error);
@@ -150,15 +133,11 @@ export class FilesAPIClient extends BaseAPIClient {
         '~:id': `~u${fileId}`,
         '~:name': newName,
       };
-      
-      const response = await this.post<unknown>(
-        '/rpc/command/rename-file',
-        payload,
-        true
-      );
-      
+
+      const response = await this.post<unknown>('/rpc/command/rename-file', payload, true);
+
       const file = this.normalizeTransitResponse(response);
-      
+
       return ResponseFormatter.formatSuccess(file, `File renamed to "${newName}"`);
     } catch (error) {
       logger.error('Failed to rename file', error);
@@ -174,13 +153,9 @@ export class FilesAPIClient extends BaseAPIClient {
       const payload = {
         '~:id': `~u${fileId}`,
       };
-      
-      await this.post<unknown>(
-        '/rpc/command/delete-file',
-        payload,
-        true
-      );
-      
+
+      await this.post<unknown>('/rpc/command/delete-file', payload, true);
+
       return ResponseFormatter.formatSuccess({ deleted: true, fileId }, `File ${fileId} deleted`);
     } catch (error) {
       logger.error('Failed to delete file', error);
@@ -196,19 +171,15 @@ export class FilesAPIClient extends BaseAPIClient {
       const payload: Record<string, unknown> = {
         '~:file-id': `~u${fileId}`,
       };
-      
+
       if (newName) {
         payload['~:name'] = newName;
       }
-      
-      const response = await this.post<unknown>(
-        '/rpc/command/duplicate-file',
-        payload,
-        true
-      );
-      
+
+      const response = await this.post<unknown>('/rpc/command/duplicate-file', payload, true);
+
       const file = this.normalizeTransitResponse(response);
-      
+
       return ResponseFormatter.formatSuccess(file, 'File duplicated successfully');
     } catch (error) {
       logger.error('Failed to duplicate file', error);
@@ -225,15 +196,11 @@ export class FilesAPIClient extends BaseAPIClient {
         '~:ids': [`~u${fileId}`],
         '~:project-id': `~u${targetProjectId}`,
       };
-      
-      const response = await this.post<unknown>(
-        '/rpc/command/move-files',
-        payload,
-        true
-      );
-      
+
+      const response = await this.post<unknown>('/rpc/command/move-files', payload, true);
+
       const result = this.normalizeTransitResponse(response);
-      
+
       return ResponseFormatter.formatSuccess(result, `File moved to project ${targetProjectId}`);
     } catch (error) {
       logger.error('Failed to move file', error);
@@ -246,11 +213,7 @@ export class FilesAPIClient extends BaseAPIClient {
    */
   async getFilePages(fileId: string): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
       const pagesIndex = fileData.data?.pagesIndex || {};
@@ -276,11 +239,7 @@ export class FilesAPIClient extends BaseAPIClient {
    */
   async getPageObjects(fileId: string, pageId: string): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
       const page = fileData.data?.pagesIndex?.[pageId];
@@ -316,11 +275,7 @@ export class FilesAPIClient extends BaseAPIClient {
    */
   async getObject(fileId: string, pageId: string, objectId: string): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
       const page = fileData.data?.pagesIndex?.[pageId];
@@ -344,21 +299,22 @@ export class FilesAPIClient extends BaseAPIClient {
   /**
    * Get object tree for a specific object and its children
    */
-  async getObjectTree(fileId: string, objectId: string, fields?: string[], depth: number = -1): Promise<MCPResponse> {
+  async getObjectTree(
+    fileId: string,
+    objectId: string,
+    fields?: string[],
+    depth: number = -1
+  ): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
       const data = fileData.data || {};
-      
+
       // Find which page contains the object
       let pageId: string | null = null;
       let pageData: PageData | null = null;
-      
+
       for (const [pId, page] of Object.entries(data.pagesIndex || {})) {
         const p = page as PageData;
         if (p.objects?.[objectId]) {
@@ -367,25 +323,25 @@ export class FilesAPIClient extends BaseAPIClient {
           break;
         }
       }
-      
+
       if (!pageId || !pageData) {
         return ResponseFormatter.formatError(`Object ${objectId} not found in file`);
       }
-      
+
       const objects = pageData.objects || {};
       const visited = new Set<string>();
-      
+
       // Build filtered object tree
       const buildTree = (objId: string, currentDepth: number): Record<string, unknown> | null => {
         if (!(objId in objects) || visited.has(objId)) {
           return null;
         }
-        
+
         visited.add(objId);
-        
+
         const obj = objects[objId] as ObjectData;
         let filteredObj: Record<string, unknown>;
-        
+
         if (fields && fields.length > 0) {
           filteredObj = { id: objId };
           for (const field of fields) {
@@ -396,13 +352,13 @@ export class FilesAPIClient extends BaseAPIClient {
         } else {
           filteredObj = { ...obj, id: objId };
         }
-        
+
         // Stop at depth limit
         if (depth !== -1 && currentDepth >= depth) {
           visited.delete(objId);
           return filteredObj;
         }
-        
+
         // Find children
         const children: Record<string, unknown>[] = [];
         for (const [childId, childObj] of Object.entries(objects)) {
@@ -414,26 +370,29 @@ export class FilesAPIClient extends BaseAPIClient {
             }
           }
         }
-        
+
         if (children.length > 0) {
           filteredObj.children = children;
         }
-        
+
         visited.delete(objId);
         return filteredObj;
       };
-      
+
       const tree = buildTree(objectId, 0);
-      
+
       if (!tree) {
         return ResponseFormatter.formatError(`Failed to build tree for object ${objectId}`);
       }
-      
-      return ResponseFormatter.formatSuccess({
-        tree,
-        pageId,
-        objectId,
-      }, `Object tree for ${objectId}`);
+
+      return ResponseFormatter.formatSuccess(
+        {
+          tree,
+          pageId,
+          objectId,
+        },
+        `Object tree for ${objectId}`
+      );
     } catch (error) {
       return ErrorHandler.handle(error, `getObjectTree(${fileId}, ${objectId})`);
     }
@@ -444,16 +403,21 @@ export class FilesAPIClient extends BaseAPIClient {
    */
   async searchObjects(fileId: string, query: string, pageId?: string): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
       const data = fileData.data || {};
-      
-      const pattern = new RegExp(query, 'i');
+
+      // Handle special cases: empty query, "*", or "." means match all
+      const matchAll = !query || query === '*' || query === '.*' || query === '.';
+      let pattern: RegExp;
+      try {
+        pattern = matchAll ? /.*/ : new RegExp(query, 'i');
+      } catch {
+        // If regex is invalid, escape and treat as literal string
+        pattern = new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      }
+
       const matches: Array<{
         id: string;
         name: string;
@@ -461,20 +425,20 @@ export class FilesAPIClient extends BaseAPIClient {
         pageName: string;
         objectType: string;
       }> = [];
-      
-      const pagesToSearch = pageId 
+
+      const pagesToSearch = pageId
         ? { [pageId]: data.pagesIndex?.[pageId] }
         : data.pagesIndex || {};
-      
+
       for (const [pId, page] of Object.entries(pagesToSearch)) {
         if (!page) continue;
         const p = page as PageData;
         const pageName = p.name || 'Unnamed';
-        
+
         for (const [objId, obj] of Object.entries(p.objects || {})) {
           const o = obj as ObjectData;
           const objName = o.name || '';
-          
+
           if (pattern.test(objName)) {
             matches.push({
               id: objId,
@@ -486,7 +450,7 @@ export class FilesAPIClient extends BaseAPIClient {
           }
         }
       }
-      
+
       return ResponseFormatter.formatList(matches, 'match', {
         total: matches.length,
         query,
@@ -501,11 +465,7 @@ export class FilesAPIClient extends BaseAPIClient {
    */
   async analyzeFileStructure(fileId: string): Promise<MCPResponse> {
     try {
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file',
-        { id: fileId },
-        false
-      );
+      const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const fileData = this.normalizeTransitResponse(response) as FileData;
       const data = fileData.data || {};
@@ -533,15 +493,9 @@ export class FilesAPIClient extends BaseAPIClient {
         pageCount: Object.keys(pagesIndex).length,
         objectCount: totalObjects,
         objectTypes,
-        componentCount: data.componentsIndex
-          ? Object.keys(data.componentsIndex).length
-          : 0,
-        colorCount: data.colorsIndex
-          ? Object.keys(data.colorsIndex).length
-          : 0,
-        typographyCount: data.typographiesIndex
-          ? Object.keys(data.typographiesIndex).length
-          : 0,
+        componentCount: data.componentsIndex ? Object.keys(data.componentsIndex).length : 0,
+        colorCount: data.colorsIndex ? Object.keys(data.colorsIndex).length : 0,
+        typographyCount: data.typographiesIndex ? Object.keys(data.typographiesIndex).length : 0,
       };
 
       return ResponseFormatter.formatSuccess(analysis, `File analysis: ${fileData.name}`);
@@ -558,15 +512,11 @@ export class FilesAPIClient extends BaseAPIClient {
       const payload = {
         '~:file-id': `~u${fileId}`,
       };
-      
-      const response = await this.post<unknown>(
-        '/rpc/command/get-file-snapshots',
-        payload,
-        true
-      );
-      
+
+      const response = await this.post<unknown>('/rpc/command/get-file-snapshots', payload, true);
+
       const snapshots = this.normalizeTransitResponse(response);
-      
+
       return ResponseFormatter.formatList(snapshots as unknown[], 'snapshot', {
         fileId,
       });
@@ -584,20 +534,19 @@ export class FilesAPIClient extends BaseAPIClient {
       const payload: Record<string, unknown> = {
         '~:file-id': `~u${fileId}`,
       };
-      
+
       if (label) {
         payload['~:label'] = label;
       }
-      
-      const response = await this.post<unknown>(
-        '/rpc/command/create-file-snapshot',
-        payload,
-        true
-      );
-      
+
+      const response = await this.post<unknown>('/rpc/command/create-file-snapshot', payload, true);
+
       const snapshot = this.normalizeTransitResponse(response);
-      
-      return ResponseFormatter.formatSuccess(snapshot, `Snapshot created${label ? `: ${label}` : ''}`);
+
+      return ResponseFormatter.formatSuccess(
+        snapshot,
+        `Snapshot created${label ? `: ${label}` : ''}`
+      );
     } catch (error) {
       logger.error('Failed to create file snapshot', error);
       return ErrorHandler.handle(error, 'createFileSnapshot');
@@ -613,15 +562,15 @@ export class FilesAPIClient extends BaseAPIClient {
         '~:file-id': `~u${fileId}`,
         '~:id': `~u${snapshotId}`,
       };
-      
+
       const response = await this.post<unknown>(
         '/rpc/command/restore-file-snapshot',
         payload,
         true
       );
-      
+
       const result = this.normalizeTransitResponse(response);
-      
+
       return ResponseFormatter.formatSuccess(result, `File restored from snapshot ${snapshotId}`);
     } catch (error) {
       logger.error('Failed to restore file snapshot', error);

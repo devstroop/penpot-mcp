@@ -1,7 +1,7 @@
 /**
  * Comprehensive Type definitions for orchestration tools
  * Following youtrack-mcp patterns for full capability coverage
- * 
+ *
  * NOTE: Runtime validation is now handled by Zod schemas in src/schemas/
  * These interfaces are kept for backwards compatibility and documentation.
  * The canonical types are exported from the schema files.
@@ -20,4 +20,11 @@ export type { LibraryParams } from '../../schemas/library.schema.js';
 export type { SearchParams } from '../../schemas/search.schema.js';
 export type { AnalyzeParams } from '../../schemas/analyze.schema.js';
 export type { ShapesParams } from '../../schemas/shapes.schema.js';
+export type { MediaParams } from '../../schemas/media.schema.js';
+export type { FontsParams } from '../../schemas/fonts.schema.js';
+export type { ShareParams } from '../../schemas/share.schema.js';
+export type { WebhooksParams } from '../../schemas/webhooks.schema.js';
+export type { TemplatesParams } from '../../schemas/templates.schema.js';
+export type { TrashParams } from '../../schemas/trash.schema.js';
+export type { AccessTokensParams } from '../../schemas/access-tokens.schema.js';
 export type { NavigateParams, InspectParams, AssetsParams } from '../../schemas/legacy.schema.js';

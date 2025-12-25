@@ -45,6 +45,7 @@ export const filesParamsSchema = z
       'add_path',
       'modify_object',
       'delete_object',
+      'import_svg', // ISSUE-007: SVG Import
     ]),
     fileId: z.string().uuid('Invalid file UUID').optional(),
     projectId: z.string().uuid('Invalid project UUID').optional(),
@@ -67,6 +68,8 @@ export const filesParamsSchema = z
       .regex(/^#[0-9A-Fa-f]{6}$/, 'Fill must be a hex color (e.g., #FF0000)')
       .optional(),
     fillOpacity: z.number().min(0).max(1).optional(),
+    // Parent frame for shape attachment
+    frameId: z.string().uuid('Invalid frame UUID').optional(),
     // Text element options
     content: z.string().optional(),
     fontSize: z.number().positive().optional(),
@@ -81,6 +84,10 @@ export const filesParamsSchema = z
     pathPoints: z.array(pathPointSchema).optional(),
     // Modify object options
     operations: z.array(operationSchema).optional(),
+    // SVG import options (ISSUE-007)
+    svgContent: z.string().optional(),
+    scale: z.number().positive().optional(),
+    groupShapes: z.boolean().optional(),
   })
   .refine(
     (data) => {
@@ -107,6 +114,7 @@ export const filesParamsSchema = z
         'add_path',
         'modify_object',
         'delete_object',
+        'import_svg',
       ];
       if (fileIdRequired.includes(data.action) && !data.fileId) {
         return false;
@@ -130,6 +138,10 @@ export const filesParamsSchema = z
       // delete_object requires objectId
       if (data.action === 'delete_object' && !data.objectId) {
         return false;
+      }
+      // import_svg requires pageId and svgContent
+      if (data.action === 'import_svg') {
+        return !!data.pageId && !!data.svgContent;
       }
       return true;
     },
