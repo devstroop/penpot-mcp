@@ -1,4 +1,4 @@
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogEntry {
   level: LogLevel;
@@ -14,7 +14,7 @@ const LOG_LEVELS: Record<LogLevel, number> = {
   error: 3,
 };
 
-class Logger {
+export class Logger {
   private minLevel: LogLevel;
 
   // Keys that should have their values redacted in logs
@@ -33,8 +33,15 @@ class Logger {
     'refresh_token',
   ];
 
-  constructor() {
-    this.minLevel = (process.env['LOG_LEVEL'] as LogLevel) || 'info';
+  constructor(level?: LogLevel) {
+    this.minLevel = level ?? (process.env['LOG_LEVEL'] as LogLevel) ?? 'info';
+  }
+
+  /**
+   * Change the minimum log level at runtime
+   */
+  setLevel(level: LogLevel): void {
+    this.minLevel = level;
   }
 
   private get isMcpServer(): boolean {
@@ -48,8 +55,9 @@ class Logger {
   /**
    * Recursively sanitizes data to redact sensitive values before logging.
    * Prevents accidental exposure of credentials, tokens, and other secrets.
+   * Public for testing purposes.
    */
-  private sanitize(data: unknown, depth = 0): unknown {
+  sanitize(data: unknown, depth = 0): unknown {
     // Prevent infinite recursion on deeply nested or circular structures
     if (depth > 10) return '[MAX_DEPTH]';
     if (data === null || data === undefined) return data;
@@ -97,10 +105,19 @@ class Logger {
     if (this.isMcpServer) {
       console.error(formatted);
     } else {
-      if (level === 'error') {
-        console.error(formatted);
-      } else {
-        console.log(formatted);
+      // Use appropriate console method for each level
+      switch (level) {
+        case 'error':
+          console.error(formatted);
+          break;
+        case 'warn':
+          console.warn(formatted);
+          break;
+        case 'debug':
+          console.debug(formatted);
+          break;
+        default:
+          console.info(formatted);
       }
     }
   }

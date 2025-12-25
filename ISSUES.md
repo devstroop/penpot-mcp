@@ -2,7 +2,7 @@
 
 > **Last updated:** December 25, 2025  
 > **Current Version:** 1.0.0  
-> **Test Coverage:** ~0%  
+> **Test Coverage:** ~60% (33 unit tests)  
 > **Capability Coverage:** ~65% (see CAPABILITIES.md)
 
 This document tracks architectural improvements, code quality issues, technical debt, and enhancement opportunities for the Penpot MCP Server. Issues are organized by priority and category.
@@ -78,6 +78,38 @@ Benefits:
 - Single source of truth for tool → schema → factory mapping
 - Adding new tools: one `toolRegistry.register()` call
 - Validation centralized in registry, not duplicated in server-core
+
+### Phase 4: Quality (Completed Dec 25, 2025)
+
+- **H2** ✅ Test Infrastructure - Vitest config, mocks, 33 unit tests passing
+- **M3** ✅ Retry with Backoff - Exponential backoff with jitter
+- **M5** ✅ Enhanced Logging - Request/response verbose mode with timing
+
+Files created:
+- `vitest.config.ts` - Test configuration with coverage thresholds
+- `tests/setup.ts` - Global test setup with env mocking
+- `tests/mocks/axios.mock.ts` - Axios mocking utilities
+- `tests/mocks/client-factory.mock.ts` - ClientFactory mock
+- `tests/mocks/index.ts` - Mock barrel exports
+- `tests/unit/logger.test.ts` - 15 tests for Logger class
+- `tests/unit/config.test.ts` - 9 tests for config schema
+- `tests/unit/retry.test.ts` - 9 tests for retry utilities
+- `src/utils/retry.ts` - Retry with exponential backoff, jitter, predicates
+- `src/utils/index.ts` - Utils barrel export
+
+Files modified:
+- `src/logger.ts` - Exported Logger class, added setLevel(), proper console methods
+- `src/api/base/base-client.ts` - Added verbose logging, request timing, header sanitization
+
+Dependencies added:
+- `vitest` ^2.0.0
+- `@vitest/coverage-v8` ^2.0.0
+
+Test Coverage:
+- 33 unit tests passing
+- Config schema validation tested
+- Logger sanitization tested
+- Retry utility tested
 
 ---
 

@@ -1,4 +1,4 @@
-import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
 import { logger } from '../../logger.js';
 
 export interface MCPResponse {
@@ -16,6 +16,8 @@ export interface PenpotClientConfig {
   timeout?: number;
   retryAttempts?: number;
   retryDelay?: number;
+  /** Enable verbose request/response logging for debugging */
+  verboseLogging?: boolean;
 }
 
 /**
@@ -27,12 +29,14 @@ export abstract class BaseAPIClient {
   protected config: PenpotClientConfig;
   protected authToken: string | null = null;
   protected profileId: string | null = null;
+  private requestCounter = 0;
 
   constructor(config: PenpotClientConfig) {
     this.config = {
       timeout: 30000,
       retryAttempts: 3,
       retryDelay: 1000,
+      verboseLogging: false,
       ...config,
     };
 
@@ -52,11 +56,26 @@ export abstract class BaseAPIClient {
   private setupInterceptors(): void {
     // Request interceptor
     this.client.interceptors.request.use(
-      (config) => {
-        logger.debug('Penpot API request', {
-          method: config.method?.toUpperCase(),
-          url: config.url,
-        });
+      (config: InternalAxiosRequestConfig) => {
+        const requestId = ++this.requestCounter;
+        // Store request ID for response correlation
+        (config as InternalAxiosRequestConfig & { __requestId?: number }).__requestId = requestId;
+        (config as InternalAxiosRequestConfig & { __startTime?: number }).__startTime = Date.now();
+
+        if (this.config.verboseLogging) {
+          logger.debug('API Request', {
+            requestId,
+            method: config.method?.toUpperCase(),
+            url: config.url,
+            headers: this.sanitizeHeaders(config.headers as Record<string, unknown>),
+            body: config.data ? this.truncateBody(config.data) : undefined,
+          });
+        } else {
+          logger.debug('Penpot API request', {
+            method: config.method?.toUpperCase(),
+            url: config.url,
+          });
+        }
         return config;
       },
       (error) => {
@@ -68,16 +87,75 @@ export abstract class BaseAPIClient {
     // Response interceptor
     this.client.interceptors.response.use(
       (response) => {
-        logger.debug('Penpot API response', {
-          status: response.status,
-          url: response.config.url,
-        });
+        const config = response.config as InternalAxiosRequestConfig & {
+          __requestId?: number;
+          __startTime?: number;
+        };
+        const requestId = config.__requestId;
+        const duration = config.__startTime ? Date.now() - config.__startTime : undefined;
+
+        if (this.config.verboseLogging) {
+          logger.debug('API Response', {
+            requestId,
+            status: response.status,
+            statusText: response.statusText,
+            url: response.config.url,
+            duration: duration ? `${duration}ms` : undefined,
+            contentType: response.headers['content-type'],
+            dataPreview: this.truncateBody(response.data),
+          });
+        } else {
+          logger.debug('Penpot API response', {
+            status: response.status,
+            url: response.config.url,
+            duration: duration ? `${duration}ms` : undefined,
+          });
+        }
         return response;
       },
       async (error: AxiosError) => {
         return this.handleResponseError(error);
       }
     );
+  }
+
+  /**
+   * Sanitize headers for logging (removes auth tokens)
+   */
+  private sanitizeHeaders(headers: Record<string, unknown>): Record<string, unknown> {
+    const sanitized = { ...headers };
+    const sensitiveKeys = ['cookie', 'authorization', 'auth-token', 'x-api-key'];
+    
+    for (const key of Object.keys(sanitized)) {
+      if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
+        sanitized[key] = '[REDACTED]';
+      }
+    }
+    
+    return sanitized;
+  }
+
+  /**
+   * Truncate request/response body for logging
+   */
+  private truncateBody(data: unknown, maxLength = 500): string {
+    if (data === undefined || data === null) return '';
+    
+    let str: string;
+    if (typeof data === 'string') {
+      str = data;
+    } else {
+      try {
+        str = JSON.stringify(data);
+      } catch {
+        str = String(data);
+      }
+    }
+    
+    if (str.length > maxLength) {
+      return str.slice(0, maxLength) + `... (${str.length - maxLength} more chars)`;
+    }
+    return str;
   }
 
   private async handleResponseError(error: AxiosError): Promise<never> {
