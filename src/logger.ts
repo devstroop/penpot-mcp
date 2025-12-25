@@ -17,6 +17,22 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 class Logger {
   private minLevel: LogLevel;
 
+  // Keys that should have their values redacted in logs
+  private readonly SENSITIVE_KEYS = [
+    'password',
+    'token',
+    'auth',
+    'secret',
+    'key',
+    'cookie',
+    'credential',
+    'authorization',
+    'apikey',
+    'api_key',
+    'access_token',
+    'refresh_token',
+  ];
+
   constructor() {
     this.minLevel = (process.env['LOG_LEVEL'] as LogLevel) || 'info';
   }
@@ -29,10 +45,38 @@ class Logger {
     return LOG_LEVELS[level] >= LOG_LEVELS[this.minLevel];
   }
 
+  /**
+   * Recursively sanitizes data to redact sensitive values before logging.
+   * Prevents accidental exposure of credentials, tokens, and other secrets.
+   */
+  private sanitize(data: unknown, depth = 0): unknown {
+    // Prevent infinite recursion on deeply nested or circular structures
+    if (depth > 10) return '[MAX_DEPTH]';
+    if (data === null || data === undefined) return data;
+    if (typeof data !== 'object') return data;
+
+    if (Array.isArray(data)) {
+      return data.map((item) => this.sanitize(item, depth + 1));
+    }
+
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+      const lowerKey = key.toLowerCase();
+      if (this.SENSITIVE_KEYS.some((s) => lowerKey.includes(s))) {
+        sanitized[key] = '[REDACTED]';
+      } else if (typeof value === 'object' && value !== null) {
+        sanitized[key] = this.sanitize(value, depth + 1);
+      } else {
+        sanitized[key] = value;
+      }
+    }
+    return sanitized;
+  }
+
   private formatEntry(entry: LogEntry): string {
     const base = `[${entry.timestamp}] [${entry.level.toUpperCase()}] ${entry.message}`;
     if (entry.data !== undefined) {
-      return `${base} ${JSON.stringify(entry.data)}`;
+      return `${base} ${JSON.stringify(this.sanitize(entry.data))}`;
     }
     return base;
   }

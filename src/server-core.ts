@@ -8,6 +8,7 @@ import {
   McpError,
   type CallToolResult,
 } from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 
 import { ConfigManager } from './config.js';
 import { logger } from './logger.js';
@@ -32,23 +33,26 @@ import {
   NavigateTool,
   InspectTool,
   AssetsTool,
-  // Types
-  ProjectsParams,
-  FilesParams,
-  ComponentsParams,
-  TokensParams,
-  ExportsParams,
-  CommentsParams,
-  TeamParams,
-  ProfileParams,
-  LibraryParams,
-  SearchParams,
-  AnalyzeParams,
-  ShapesParams,
-  NavigateParams,
-  InspectParams,
-  AssetsParams,
 } from './tools/orchestration/index.js';
+
+// Import Zod schemas for runtime validation
+import {
+  projectsParamsSchema,
+  filesParamsSchema,
+  componentsParamsSchema,
+  tokensParamsSchema,
+  exportsParamsSchema,
+  commentsParamsSchema,
+  teamParamsSchema,
+  profileParamsSchema,
+  libraryParamsSchema,
+  searchParamsSchema,
+  analyzeParamsSchema,
+  shapesParamsSchema,
+  navigateParamsSchema,
+  inspectParamsSchema,
+  assetsParamsSchema,
+} from './schemas/index.js';
 
 // Type adapter to convert MCPResponse to CallToolResult
 function toCallToolResult(response: MCPResponse): CallToolResult {
@@ -142,100 +146,132 @@ export class PenpotMCPServer {
 
       // Projects tool
       case 'projects': {
+        const validated = this.validateParams(projectsParamsSchema, args);
         const tool = new ProjectsTool(this.clientFactory);
-        return tool.execute(args as unknown as ProjectsParams);
+        return tool.execute(validated);
       }
 
       // Files tool
       case 'files': {
+        const validated = this.validateParams(filesParamsSchema, args);
         const tool = new FilesTool(this.clientFactory);
-        return tool.execute(args as unknown as FilesParams);
+        return tool.execute(validated);
       }
 
       // Components tool
       case 'components': {
+        const validated = this.validateParams(componentsParamsSchema, args);
         const tool = new ComponentsTool(this.clientFactory);
-        return tool.execute(args as unknown as ComponentsParams);
+        return tool.execute(validated);
       }
 
       // Tokens tool
       case 'tokens': {
+        const validated = this.validateParams(tokensParamsSchema, args);
         const tool = new TokensTool(this.clientFactory);
-        return tool.execute(args as unknown as TokensParams);
+        return tool.execute(validated);
       }
 
       // Exports tool
       case 'exports': {
+        const validated = this.validateParams(exportsParamsSchema, args);
         const tool = new ExportsTool(this.clientFactory);
-        return tool.execute(args as unknown as ExportsParams);
+        return tool.execute(validated);
       }
 
       // Comments tool
       case 'comments': {
+        const validated = this.validateParams(commentsParamsSchema, args);
         const tool = new CommentsTool(this.clientFactory);
-        return tool.execute(args as unknown as CommentsParams);
+        return tool.execute(validated);
       }
 
       // Team tool
       case 'team': {
+        const validated = this.validateParams(teamParamsSchema, args);
         const tool = new TeamTool(this.clientFactory);
-        return tool.execute(args as unknown as TeamParams);
+        return tool.execute(validated);
       }
 
       // Profile tool
       case 'profile': {
+        const validated = this.validateParams(profileParamsSchema, args);
         const tool = new ProfileTool(this.clientFactory);
-        return tool.execute(args as unknown as ProfileParams);
+        return tool.execute(validated);
       }
 
       // Library tool
       case 'library': {
+        const validated = this.validateParams(libraryParamsSchema, args);
         const tool = new LibraryTool(this.clientFactory);
-        return tool.execute(args as unknown as LibraryParams);
+        return tool.execute(validated);
       }
 
       // Search tool
       case 'search': {
+        const validated = this.validateParams(searchParamsSchema, args);
         const tool = new SearchTool(this.clientFactory);
-        return tool.execute(args as unknown as SearchParams);
+        return tool.execute(validated);
       }
 
       // Analyze tool
       case 'analyze': {
+        const validated = this.validateParams(analyzeParamsSchema, args);
         const tool = new AnalyzeTool(this.clientFactory);
-        return tool.execute(args as unknown as AnalyzeParams);
+        return tool.execute(validated);
       }
 
       // Shapes tool
       case 'shapes': {
+        const validated = this.validateParams(shapesParamsSchema, args);
         const tool = new ShapesTool(this.clientFactory);
-        return tool.execute(args as unknown as ShapesParams);
+        return tool.execute(validated);
       }
 
       // ==================== Legacy Tools (backward compatibility) ====================
 
       // Navigation tool
       case 'navigate': {
+        const validated = this.validateParams(navigateParamsSchema, args);
         const tool = new NavigateTool(this.clientFactory);
-        return tool.execute(args as unknown as NavigateParams);
+        return tool.execute(validated);
       }
 
       // Inspection tool
       case 'inspect': {
+        const validated = this.validateParams(inspectParamsSchema, args);
         const tool = new InspectTool(this.clientFactory);
-        return tool.execute(args as unknown as InspectParams);
+        return tool.execute(validated);
       }
 
       // Assets tool
       case 'assets': {
+        const validated = this.validateParams(assetsParamsSchema, args);
         const tool = new AssetsTool(this.clientFactory);
-        return tool.execute(args as unknown as AssetsParams);
+        return tool.execute(validated);
       }
 
       default:
         logger.warn('Unknown tool requested', { tool: name });
         throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${name}`);
     }
+  }
+
+  /**
+   * Validates parameters against a Zod schema.
+   * Throws McpError with InvalidParams code if validation fails.
+   */
+  private validateParams<T extends z.ZodType>(schema: T, args: unknown): z.infer<T> {
+    const result = schema.safeParse(args);
+    if (!result.success) {
+      const zodError = result.error;
+      const errorMessage = zodError.issues
+        .map((e: z.ZodIssue) => `${e.path.join('.')}: ${e.message}`)
+        .join('; ');
+      logger.warn('Parameter validation failed', { errors: zodError.issues });
+      throw new McpError(ErrorCode.InvalidParams, `Invalid parameters: ${errorMessage}`);
+    }
+    return result.data;
   }
 
   public onConnectionClose(handler: () => void | Promise<void>): void {
