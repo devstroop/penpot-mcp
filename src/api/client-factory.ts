@@ -1,4 +1,4 @@
-import { PenpotClientConfig } from './base/index.js';
+import { PenpotClientConfig, AuthSessionManager } from './base/index.js';
 import {
   ProjectsAPIClient,
   FilesAPIClient,
@@ -42,9 +42,13 @@ export interface PenpotClient {
 /**
  * Factory for creating Penpot API clients
  * Comprehensive client management for all Penpot domains
+ *
+ * IMPORTANT: Uses a shared AuthSessionManager to prevent duplicate authentication
+ * requests across all API clients.
  */
 export class ClientFactory {
   private config: PenpotClientConfig;
+  private authSession: AuthSessionManager;
   private sharedProjectsClient: ProjectsAPIClient | null = null;
   private sharedFilesClient: FilesAPIClient | null = null;
   private sharedComponentsClient: ComponentsAPIClient | null = null;
@@ -65,6 +69,24 @@ export class ClientFactory {
 
   constructor(config: PenpotClientConfig) {
     this.config = config;
+    // Create ONE shared auth session for ALL clients
+    // Supports both access token and username/password authentication
+    this.authSession = new AuthSessionManager(
+      config.baseURL,
+      config.accessToken,
+      config.username,
+      config.password
+    );
+  }
+
+  /**
+   * Get config with shared auth session injected
+   */
+  private getConfigWithSession(): PenpotClientConfig {
+    return {
+      ...this.config,
+      authSession: this.authSession,
+    };
   }
 
   /**
@@ -97,7 +119,7 @@ export class ClientFactory {
    */
   createProjectsClient(): ProjectsAPIClient {
     if (!this.sharedProjectsClient) {
-      this.sharedProjectsClient = new ProjectsAPIClient(this.config);
+      this.sharedProjectsClient = new ProjectsAPIClient(this.getConfigWithSession());
     }
     return this.sharedProjectsClient;
   }
@@ -107,7 +129,7 @@ export class ClientFactory {
    */
   createFilesClient(): FilesAPIClient {
     if (!this.sharedFilesClient) {
-      this.sharedFilesClient = new FilesAPIClient(this.config);
+      this.sharedFilesClient = new FilesAPIClient(this.getConfigWithSession());
     }
     return this.sharedFilesClient;
   }
@@ -117,7 +139,7 @@ export class ClientFactory {
    */
   createComponentsClient(): ComponentsAPIClient {
     if (!this.sharedComponentsClient) {
-      this.sharedComponentsClient = new ComponentsAPIClient(this.config);
+      this.sharedComponentsClient = new ComponentsAPIClient(this.getConfigWithSession());
     }
     return this.sharedComponentsClient;
   }
@@ -127,7 +149,7 @@ export class ClientFactory {
    */
   createTokensClient(): TokensAPIClient {
     if (!this.sharedTokensClient) {
-      this.sharedTokensClient = new TokensAPIClient(this.config);
+      this.sharedTokensClient = new TokensAPIClient(this.getConfigWithSession());
     }
     return this.sharedTokensClient;
   }
@@ -137,7 +159,7 @@ export class ClientFactory {
    */
   createExportsClient(): ExportsAPIClient {
     if (!this.sharedExportsClient) {
-      this.sharedExportsClient = new ExportsAPIClient(this.config);
+      this.sharedExportsClient = new ExportsAPIClient(this.getConfigWithSession());
     }
     return this.sharedExportsClient;
   }
@@ -147,7 +169,7 @@ export class ClientFactory {
    */
   createCommentsClient(): CommentsAPIClient {
     if (!this.sharedCommentsClient) {
-      this.sharedCommentsClient = new CommentsAPIClient(this.config);
+      this.sharedCommentsClient = new CommentsAPIClient(this.getConfigWithSession());
     }
     return this.sharedCommentsClient;
   }
@@ -157,7 +179,7 @@ export class ClientFactory {
    */
   createTeamClient(): TeamAPIClient {
     if (!this.sharedTeamClient) {
-      this.sharedTeamClient = new TeamAPIClient(this.config);
+      this.sharedTeamClient = new TeamAPIClient(this.getConfigWithSession());
     }
     return this.sharedTeamClient;
   }
@@ -167,7 +189,7 @@ export class ClientFactory {
    */
   createProfileClient(): ProfileAPIClient {
     if (!this.sharedProfileClient) {
-      this.sharedProfileClient = new ProfileAPIClient(this.config);
+      this.sharedProfileClient = new ProfileAPIClient(this.getConfigWithSession());
     }
     return this.sharedProfileClient;
   }
@@ -177,7 +199,7 @@ export class ClientFactory {
    */
   createLibraryClient(): LibraryAPIClient {
     if (!this.sharedLibraryClient) {
-      this.sharedLibraryClient = new LibraryAPIClient(this.config);
+      this.sharedLibraryClient = new LibraryAPIClient(this.getConfigWithSession());
     }
     return this.sharedLibraryClient;
   }
@@ -187,7 +209,7 @@ export class ClientFactory {
    */
   createFileChangesClient(): FileChangesAPIClient {
     if (!this.sharedFileChangesClient) {
-      this.sharedFileChangesClient = new FileChangesAPIClient(this.config);
+      this.sharedFileChangesClient = new FileChangesAPIClient(this.getConfigWithSession());
     }
     return this.sharedFileChangesClient;
   }
@@ -197,7 +219,7 @@ export class ClientFactory {
    */
   createMediaClient(): MediaAPIClient {
     if (!this.sharedMediaClient) {
-      this.sharedMediaClient = new MediaAPIClient(this.config);
+      this.sharedMediaClient = new MediaAPIClient(this.getConfigWithSession());
     }
     return this.sharedMediaClient;
   }
@@ -207,7 +229,7 @@ export class ClientFactory {
    */
   createFontsClient(): FontAPIClient {
     if (!this.sharedFontsClient) {
-      this.sharedFontsClient = new FontAPIClient(this.config);
+      this.sharedFontsClient = new FontAPIClient(this.getConfigWithSession());
     }
     return this.sharedFontsClient;
   }
@@ -217,7 +239,7 @@ export class ClientFactory {
    */
   createShareClient(): ShareAPIClient {
     if (!this.sharedShareClient) {
-      this.sharedShareClient = new ShareAPIClient(this.config);
+      this.sharedShareClient = new ShareAPIClient(this.getConfigWithSession());
     }
     return this.sharedShareClient;
   }
@@ -227,7 +249,7 @@ export class ClientFactory {
    */
   createWebhooksClient(): WebhooksAPIClient {
     if (!this.sharedWebhooksClient) {
-      this.sharedWebhooksClient = new WebhooksAPIClient(this.config);
+      this.sharedWebhooksClient = new WebhooksAPIClient(this.getConfigWithSession());
     }
     return this.sharedWebhooksClient;
   }
@@ -237,7 +259,7 @@ export class ClientFactory {
    */
   createTemplatesClient(): TemplatesAPIClient {
     if (!this.sharedTemplatesClient) {
-      this.sharedTemplatesClient = new TemplatesAPIClient(this.config);
+      this.sharedTemplatesClient = new TemplatesAPIClient(this.getConfigWithSession());
     }
     return this.sharedTemplatesClient;
   }
@@ -247,7 +269,7 @@ export class ClientFactory {
    */
   createTrashClient(): TrashAPIClient {
     if (!this.sharedTrashClient) {
-      this.sharedTrashClient = new TrashAPIClient(this.config);
+      this.sharedTrashClient = new TrashAPIClient(this.getConfigWithSession());
     }
     return this.sharedTrashClient;
   }
@@ -257,7 +279,7 @@ export class ClientFactory {
    */
   createAccessTokensClient(): AccessTokensAPIClient {
     if (!this.sharedAccessTokensClient) {
-      this.sharedAccessTokensClient = new AccessTokensAPIClient(this.config);
+      this.sharedAccessTokensClient = new AccessTokensAPIClient(this.getConfigWithSession());
     }
     return this.sharedAccessTokensClient;
   }
@@ -279,7 +301,7 @@ export class ClientFactory {
   }
 
   /**
-   * Reset all cached clients
+   * Reset all cached clients and clear auth session
    */
   resetClients(): void {
     this.sharedProjectsClient = null;
@@ -299,5 +321,14 @@ export class ClientFactory {
     this.sharedTemplatesClient = null;
     this.sharedTrashClient = null;
     this.sharedAccessTokensClient = null;
+    // Clear auth session when resetting clients
+    this.authSession.clearSession();
+  }
+
+  /**
+   * Get the shared auth session manager
+   */
+  getAuthSession(): AuthSessionManager {
+    return this.authSession;
   }
 }

@@ -104,11 +104,24 @@ export interface FileMetadata {
 }
 
 /**
+ * Cached file metadata with timestamp
+ */
+interface CachedMetadata {
+  metadata: FileMetadata;
+  timestamp: number;
+}
+
+/**
  * File Changes API Client
  * Handles all file modifications through the update-file endpoint
+ *
+ * Includes caching for file metadata to reduce duplicate API calls
  */
 export class FileChangesAPIClient extends BaseAPIClient {
   private sessionId: string;
+  private metadataCache: Map<string, CachedMetadata> = new Map();
+  // Short TTL for metadata since revn changes after each update
+  private readonly METADATA_CACHE_TTL = 2000; // 2 seconds
 
   constructor(config: ConstructorParameters<typeof BaseAPIClient>[0]) {
     super(config);
@@ -117,22 +130,63 @@ export class FileChangesAPIClient extends BaseAPIClient {
 
   /**
    * Get file metadata needed for updates (revn, vern)
+   * Uses short-lived cache to avoid duplicate requests for rapid sequential operations
    */
-  async getFileMetadata(fileId: string): Promise<FileMetadata | null> {
+  async getFileMetadata(fileId: string, forceRefresh = false): Promise<FileMetadata | null> {
+    // Check cache first (unless force refresh)
+    if (!forceRefresh) {
+      const cached = this.metadataCache.get(fileId);
+      if (cached && Date.now() - cached.timestamp < this.METADATA_CACHE_TTL) {
+        logger.cache('debug', 'Using cached file metadata', {
+          fileId,
+          revn: cached.metadata.revn,
+          cacheAge: `${Date.now() - cached.timestamp}ms`,
+        });
+        return cached.metadata;
+      }
+    }
+
     try {
       const response = await this.post<unknown>('/rpc/command/get-file', { id: fileId }, false);
 
       const data = this.normalizeTransitResponse(response) as Record<string, unknown>;
 
-      return {
+      const metadata: FileMetadata = {
         id: fileId,
         revn: (data['revn'] as number) || 0,
         vern: (data['vern'] as number) || 0,
         name: (data['name'] as string) || 'Untitled',
       };
+
+      // Cache the metadata
+      this.metadataCache.set(fileId, {
+        metadata,
+        timestamp: Date.now(),
+      });
+
+      return metadata;
     } catch (error) {
       logger.error('Failed to get file metadata', { fileId, error });
       return null;
+    }
+  }
+
+  /**
+   * Invalidate metadata cache for a file (call after successful update)
+   */
+  private invalidateMetadataCache(fileId: string): void {
+    this.metadataCache.delete(fileId);
+  }
+
+  /**
+   * Update cached metadata with new revn after successful change
+   */
+  private updateCachedRevn(fileId: string, newRevn: number): void {
+    const cached = this.metadataCache.get(fileId);
+    if (cached) {
+      cached.metadata.revn = newRevn;
+      cached.timestamp = Date.now();
+      logger.cache('debug', 'Updated cached revn', { fileId, newRevn });
     }
   }
 
@@ -141,31 +195,75 @@ export class FileChangesAPIClient extends BaseAPIClient {
    */
   async submitChanges(fileId: string, changes: FileChange[]): Promise<MCPResponse> {
     try {
-      // Get current file metadata
+      // Get current file metadata (may use cache)
       const metadata = await this.getFileMetadata(fileId);
       if (!metadata) {
+        logger.file('error', 'Failed to get file metadata', { fileId });
         return ResponseFormatter.formatError('Failed to get file metadata');
       }
 
       // Build the transit-encoded payload
       const payload = this.buildUpdatePayload(metadata, changes);
 
-      logger.debug('Submitting file changes', {
+      // Log the changes being submitted
+      logger.file('info', 'Submitting changes', {
         fileId,
         changeCount: changes.length,
+        changeTypes: changes.map((c) => c.type),
         revn: metadata.revn,
         vern: metadata.vern,
-        payload: JSON.stringify(payload),
       });
+
+      // Log detailed change info
+      for (const change of changes) {
+        if (change.type === 'add-obj') {
+          const objChange = change as ObjectChange;
+          logger.shape('info', 'Adding object', {
+            type: objChange.obj?.['type'],
+            id: objChange.id,
+            name: objChange.obj?.['name'],
+            position: { x: objChange.obj?.['x'], y: objChange.obj?.['y'] },
+            size: { width: objChange.obj?.['width'], height: objChange.obj?.['height'] },
+            parentId: objChange['parent-id'],
+            frameId: objChange['frame-id'],
+          });
+        } else if (change.type === 'mod-obj') {
+          const objChange = change as ObjectChange;
+          logger.shape('info', 'Modifying object', {
+            id: objChange.id,
+            operations: objChange.operations,
+          });
+        } else if (change.type === 'del-obj') {
+          const objChange = change as ObjectChange;
+          logger.shape('info', 'Deleting object', {
+            id: objChange.id,
+          });
+        }
+      }
 
       // Use postRaw to send already-formatted Transit payload
       const response = await this.postTransit<unknown>('/rpc/command/update-file', payload);
 
-      const result = this.normalizeTransitResponse(response);
+      const result = this.normalizeTransitResponse(response) as Record<string, unknown>;
+
+      // Update cached revn after successful change
+      // The API returns the new revn in the response
+      const newRevn = (result['revn'] as number) ?? metadata.revn + 1;
+      this.updateCachedRevn(fileId, newRevn);
+
+      logger.file('info', 'Changes applied successfully', {
+        fileId,
+        changeCount: changes.length,
+        newRevn,
+      });
 
       return ResponseFormatter.formatSuccess(result, `Applied ${changes.length} change(s) to file`);
     } catch (error) {
-      logger.error('Failed to submit file changes', { fileId, error });
+      logger.file('error', 'Failed to submit changes', {
+        fileId,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return ErrorHandler.handle(error, 'submitChanges');
     }
   }
@@ -1238,6 +1336,13 @@ export class FileChangesAPIClient extends BaseAPIClient {
       textTransform?: 'none' | 'uppercase' | 'lowercase' | 'capitalize';
     }
   ): Promise<MCPResponse> {
+    logger.info('📝 PENPOT: Creating text element', {
+      content: options.content,
+      position: { x: options.x, y: options.y },
+      fontSize: options.fontSize || 16,
+      frameId: options.frameId || 'root',
+    });
+
     const shapeId = uuidv4();
     const rootFrameId = '00000000-0000-0000-0000-000000000000';
     // Use provided frameId or fall back to root
@@ -1673,6 +1778,11 @@ export class FileChangesAPIClient extends BaseAPIClient {
     objectId: string,
     operations: Array<{ attr: string; val: unknown }>
   ): Promise<MCPResponse> {
+    logger.info('✏️ PENPOT: Modifying object', {
+      objectId,
+      operations: operations.map((op) => ({ attr: op.attr, val: op.val })),
+    });
+
     const change: ObjectChange = {
       type: 'mod-obj',
       id: objectId,

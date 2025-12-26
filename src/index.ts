@@ -6,7 +6,8 @@ process.env['MCP_SERVER'] = 'true';
 import { logger } from './logger.js';
 import { PenpotMCPServer } from './server-core.js';
 
-const skipRuntime = process.env['SKIP_CONFIG_VALIDATION'] === 'true' || process.env['CI'] === 'true';
+const skipRuntime =
+  process.env['SKIP_CONFIG_VALIDATION'] === 'true' || process.env['CI'] === 'true';
 
 let server: PenpotMCPServer | null = null;
 
@@ -14,10 +15,13 @@ try {
   server = new PenpotMCPServer();
 
   if (skipRuntime) {
-    logger.info('Configuration missing or CI mode detected - skipping runtime server startup');
+    logger.server(
+      'info',
+      'Configuration missing or CI mode detected - skipping runtime server startup'
+    );
   } else {
     const handleShutdown = (signal: NodeJS.Signals) => {
-      logger.info(`Received ${signal}, shutting down`);
+      logger.server('info', `Received ${signal}, shutting down`);
 
       if (!server) {
         process.exit(0);
@@ -27,7 +31,7 @@ try {
       server
         .cleanup({ disconnect: true })
         .catch((error) => {
-          logger.warn('Error while cleaning up server during shutdown', error);
+          logger.server('warn', 'Error while cleaning up server during shutdown', error);
         })
         .finally(() => process.exit(0));
     };
@@ -36,11 +40,11 @@ try {
     process.once('SIGTERM', handleShutdown);
 
     server.run().catch((error) => {
-      logger.error('Failed to start Penpot MCP server', error);
+      logger.server('error', 'Failed to start Penpot MCP server', error);
       process.exit(1);
     });
   }
 } catch (error) {
-  logger.error('Failed to initialize Penpot MCP server', error);
+  logger.server('error', 'Failed to initialize Penpot MCP server', error);
   process.exit(1);
 }

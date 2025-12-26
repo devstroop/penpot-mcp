@@ -134,7 +134,7 @@ export async function retryWithBackoff<T>(
       const isLastAttempt = attempt === cfg.maxAttempts;
       const willRetry = !isLastAttempt && shouldRetry(error, attempt);
 
-      logger.debug('Operation failed', {
+      logger.api('debug', 'Operation failed, evaluating retry', {
         attempt,
         maxAttempts: cfg.maxAttempts,
         willRetry,
@@ -146,7 +146,7 @@ export async function retryWithBackoff<T>(
       }
 
       const delay = calculateBackoffDelay(attempt, cfg);
-      logger.debug(`Retrying in ${delay}ms...`, { attempt, delay });
+      logger.api('debug', `Retrying in ${delay}ms`, { attempt, delay });
       await sleep(delay);
     }
   }

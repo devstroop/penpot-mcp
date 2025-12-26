@@ -38,14 +38,15 @@ export class PenpotMCPServer {
 
     const penpotConfig = this.config.get();
 
-    logger.info('Initializing Penpot MCP Server', {
+    logger.server('info', 'Initializing Penpot MCP Server', {
       baseUrl: penpotConfig.baseUrl,
       hasDefaultProjectId: this.config.hasDefaultProjectId(),
     });
 
-    // Initialize client factory
+    // Initialize client factory with access token or username/password
     this.clientFactory = new ClientFactory({
       baseURL: penpotConfig.baseUrl,
+      accessToken: penpotConfig.accessToken,
       username: penpotConfig.username,
       password: penpotConfig.password,
       timeout: DEFAULTS.TIMEOUT,
@@ -73,7 +74,7 @@ export class PenpotMCPServer {
     );
 
     this.setupToolHandlers();
-    logger.info('Penpot MCP Server initialized', {
+    logger.server('info', 'Penpot MCP Server initialized', {
       toolCount: this.toolDefinitions.length,
       registeredTools: toolRegistry.count,
     });
@@ -86,28 +87,31 @@ export class PenpotMCPServer {
     }));
 
     // Register tool call handler
-    this.server.setRequestHandler(CallToolRequestSchema, async (request): Promise<CallToolResult> => {
-      const { name, arguments: args = {} } = request.params;
+    this.server.setRequestHandler(
+      CallToolRequestSchema,
+      async (request): Promise<CallToolResult> => {
+        const { name, arguments: args = {} } = request.params;
 
-      try {
-        const response = await this.handleToolCall(name, args as Record<string, unknown>);
-        return toCallToolResult(response);
-      } catch (error) {
-        logger.error('Tool execution error', {
-          tool: name,
-          error: error instanceof Error ? error.message : error,
-        });
+        try {
+          const response = await this.handleToolCall(name, args as Record<string, unknown>);
+          return toCallToolResult(response);
+        } catch (error) {
+          logger.tool('error', 'Tool execution error', {
+            tool: name,
+            error: error instanceof Error ? error.message : error,
+          });
 
-        if (error instanceof McpError) {
-          throw error;
+          if (error instanceof McpError) {
+            throw error;
+          }
+
+          throw new McpError(
+            ErrorCode.InternalError,
+            `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
-
-        throw new McpError(
-          ErrorCode.InternalError,
-          `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
-        );
       }
-    });
+    );
   }
 
   /**
@@ -115,14 +119,14 @@ export class PenpotMCPServer {
    * Validation and instantiation are handled by the registry.
    */
   private async handleToolCall(name: string, args: Record<string, unknown>): Promise<MCPResponse> {
-    logger.debug('Handling tool call', { tool: name, args });
+    logger.tool('debug', 'Handling tool call', { tool: name, args });
     return toolRegistry.execute(name, args);
   }
 
   public onConnectionClose(handler: () => void | Promise<void>): void {
     this.server.onclose = () => {
       Promise.resolve(handler()).catch((error) => {
-        logger.error('Error while handling MCP connection close', error);
+        logger.server('error', 'Error while handling MCP connection close', error);
       });
     };
   }
@@ -130,7 +134,7 @@ export class PenpotMCPServer {
   public onConnectionError(handler: (error: Error) => void | Promise<void>): void {
     this.server.onerror = (error: Error) => {
       Promise.resolve(handler(error)).catch((handlerError) => {
-        logger.error('Error while handling MCP connection error', handlerError);
+        logger.server('error', 'Error while handling MCP connection error', handlerError);
       });
     };
   }
@@ -138,7 +142,7 @@ export class PenpotMCPServer {
   async connect(transport: Transport): Promise<void> {
     this.transport = transport;
     await this.server.connect(transport);
-    logger.info('Penpot MCP Server connected', {
+    logger.server('info', 'Penpot MCP Server connected', {
       transport: transport.constructor?.name ?? 'UnknownTransport',
       toolCount: this.toolDefinitions.length,
     });
@@ -147,7 +151,7 @@ export class PenpotMCPServer {
   async run(): Promise<void> {
     const transport = new StdioServerTransport();
     await this.connect(transport);
-    logger.info('Penpot MCP Server running with stdio transport');
+    logger.server('info', 'Penpot MCP Server running with stdio transport');
   }
 
   async cleanup(options: { disconnect?: boolean } = {}): Promise<void> {
@@ -155,7 +159,7 @@ export class PenpotMCPServer {
       try {
         await this.transport.close();
       } catch (error) {
-        logger.warn('Error while closing MCP transport during cleanup', error);
+        logger.server('warn', 'Error while closing MCP transport during cleanup', error);
       }
     }
 
@@ -163,6 +167,6 @@ export class PenpotMCPServer {
     toolRegistry.clearInstances();
 
     this.transport = null;
-    logger.info('Server resources cleaned up');
+    logger.server('info', 'Server resources cleaned up');
   }
 }

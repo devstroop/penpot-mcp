@@ -98,7 +98,7 @@ class ToolRegistry {
    */
   register<T extends z.ZodType>(registration: ToolRegistration<T>): void {
     if (this.registrations.has(registration.name)) {
-      logger.warn(`Tool '${registration.name}' is already registered, overwriting`);
+      logger.tool('warn', `Tool '${registration.name}' is already registered, overwriting`);
     }
     this.registrations.set(registration.name, registration);
   }
@@ -110,7 +110,7 @@ class ToolRegistry {
   setClientFactory(factory: ClientFactory): void {
     this.clientFactory = factory;
     this.instances.clear();
-    logger.debug('Client factory set, tool instances cleared');
+    logger.server('debug', 'Client factory set, tool instances cleared');
   }
 
   /**
@@ -130,7 +130,10 @@ class ToolRegistry {
       const errorMessage = result.error.issues
         .map((e: z.ZodIssue) => `${e.path.join('.')}: ${e.message}`)
         .join('; ');
-      logger.warn('Parameter validation failed', { tool: name, errors: result.error.issues });
+      logger.tool('warn', 'Parameter validation failed', {
+        tool: name,
+        errors: result.error.issues,
+      });
       throw new McpError(ErrorCode.InvalidParams, `Invalid parameters: ${errorMessage}`);
     }
 
@@ -142,7 +145,7 @@ class ToolRegistry {
       }
       instance = registration.factory(this.clientFactory);
       this.instances.set(name, instance);
-      logger.debug(`Tool instance created: ${name}`);
+      logger.tool('debug', `Tool instance created: ${name}`);
     }
 
     // Execute with validated params
@@ -339,4 +342,4 @@ toolRegistry.register({
   factory: (cf) => new AssetsTool(cf),
 });
 
-logger.debug(`Tool registry initialized with ${toolRegistry.count} tools`);
+logger.server('debug', `Tool registry initialized with ${toolRegistry.count} tools`);

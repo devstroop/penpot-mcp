@@ -104,20 +104,6 @@ export class ExportsAPIClient extends BaseAPIClient {
   }
 
   /**
-   * Fetch profile ID by calling the profile endpoint
-   */
-  private async fetchProfileId(): Promise<string | null> {
-    try {
-      const response = await this.post<unknown>('/rpc/command/get-profile', {}, false);
-      const data = this.normalizeTransitResponse(response) as { id?: string };
-      return data.id || null;
-    } catch (error) {
-      logger.error('Failed to fetch profile ID', error);
-      return null;
-    }
-  }
-
-  /**
    * Create an export job and get the resource
    */
   async exportObject(params: ExportParams): Promise<MCPResponse> {
@@ -126,18 +112,14 @@ export class ExportsAPIClient extends BaseAPIClient {
     try {
       await this.ensureAuthenticated();
 
-      let profileId = this.getProfileId();
+      const profileId = await this.getProfileId();
       if (!profileId) {
-        // Try to fetch profile ID from API
-        profileId = await this.fetchProfileId();
-        if (!profileId) {
-          return ResponseFormatter.formatError(
-            'Profile ID not available. Please authenticate first.'
-          );
-        }
+        return ResponseFormatter.formatError(
+          'Profile ID not available. Please authenticate first.'
+        );
       }
 
-      const authToken = this.getAuthToken();
+      const authToken = await this.getAuthTokenString();
       if (!authToken) {
         return ResponseFormatter.formatError(
           'Auth token not available. Please authenticate first.'
@@ -233,18 +215,14 @@ export class ExportsAPIClient extends BaseAPIClient {
     try {
       await this.ensureAuthenticated();
 
-      let profileId = this.getProfileId();
+      const profileId = await this.getProfileId();
       if (!profileId) {
-        // Try to fetch profile ID from API
-        profileId = await this.fetchProfileId();
-        if (!profileId) {
-          return ResponseFormatter.formatError(
-            'Profile ID not available. Please authenticate first.'
-          );
-        }
+        return ResponseFormatter.formatError(
+          'Profile ID not available. Please authenticate first.'
+        );
       }
 
-      const authToken = this.getAuthToken();
+      const authToken = await this.getAuthTokenString();
       if (!authToken) {
         return ResponseFormatter.formatError(
           'Auth token not available. Please authenticate first.'
@@ -862,18 +840,14 @@ export class ExportsAPIClient extends BaseAPIClient {
     try {
       await this.ensureAuthenticated();
 
-      let profileId = this.getProfileId();
+      const profileId = await this.getProfileId();
       if (!profileId) {
-        // Try to fetch profile ID from API
-        profileId = await this.fetchProfileId();
-        if (!profileId) {
-          return ResponseFormatter.formatError(
-            'Profile ID not available. Please authenticate first.'
-          );
-        }
+        return ResponseFormatter.formatError(
+          'Profile ID not available. Please authenticate first.'
+        );
       }
 
-      const authToken = this.getAuthToken();
+      const authToken = await this.getAuthTokenString();
       if (!authToken) {
         return ResponseFormatter.formatError(
           'Auth token not available. Please authenticate first.'

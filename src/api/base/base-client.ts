@@ -5,6 +5,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from 'axios';
 import { logger } from '../../logger.js';
+import { AuthSessionManager } from './auth-session.js';
 
 export interface MCPResponse {
   content: Array<{
@@ -16,13 +17,19 @@ export interface MCPResponse {
 
 export interface PenpotClientConfig {
   baseURL: string;
-  username: string;
-  password: string;
+  /** Access token for authentication (preferred for cloud/social login) */
+  accessToken?: string;
+  /** Username for password authentication */
+  username?: string;
+  /** Password for password authentication */
+  password?: string;
   timeout?: number;
   retryAttempts?: number;
   retryDelay?: number;
   /** Enable verbose request/response logging for debugging */
   verboseLogging?: boolean;
+  /** Shared auth session manager (injected by ClientFactory) */
+  authSession?: AuthSessionManager;
 }
 
 /**
@@ -32,8 +39,7 @@ export interface PenpotClientConfig {
 export abstract class BaseAPIClient {
   protected client: AxiosInstance;
   protected config: PenpotClientConfig;
-  protected authToken: string | null = null;
-  protected profileId: string | null = null;
+  protected authSession: AuthSessionManager;
   private requestCounter = 0;
 
   constructor(config: PenpotClientConfig) {
@@ -41,9 +47,14 @@ export abstract class BaseAPIClient {
       timeout: 30000,
       retryAttempts: 3,
       retryDelay: 1000,
-      verboseLogging: false,
+      verboseLogging: true, // Enable verbose logging by default
       ...config,
     };
+
+    // Use shared auth session or create a new one (for backwards compatibility)
+    this.authSession =
+      config.authSession ||
+      new AuthSessionManager(config.baseURL, config.accessToken, config.username, config.password);
 
     this.client = axios.create({
       baseURL: this.config.baseURL,
@@ -67,24 +78,22 @@ export abstract class BaseAPIClient {
         (config as InternalAxiosRequestConfig & { __requestId?: number }).__requestId = requestId;
         (config as InternalAxiosRequestConfig & { __startTime?: number }).__startTime = Date.now();
 
-        if (this.config.verboseLogging) {
-          logger.debug('API Request', {
-            requestId,
-            method: config.method?.toUpperCase(),
-            url: config.url,
-            headers: this.sanitizeHeaders(config.headers as Record<string, unknown>),
-            body: config.data ? this.truncateBody(config.data) : undefined,
-          });
-        } else {
-          logger.debug('Penpot API request', {
-            method: config.method?.toUpperCase(),
-            url: config.url,
+        // Always log API requests with clear formatting
+        logger.api('info', `API REQUEST #${requestId}`, {
+          method: config.method?.toUpperCase(),
+          url: config.url,
+          contentType: config.headers?.['Content-Type'],
+        });
+
+        if (this.config.verboseLogging && config.data) {
+          logger.api('debug', 'Request body', {
+            body: this.truncateBody(config.data, 1000),
           });
         }
         return config;
       },
       (error) => {
-        logger.error('Penpot API request error', error);
+        logger.api('error', 'Request error', error);
         return Promise.reject(error);
       }
     );
@@ -99,21 +108,18 @@ export abstract class BaseAPIClient {
         const requestId = config.__requestId;
         const duration = config.__startTime ? Date.now() - config.__startTime : undefined;
 
-        if (this.config.verboseLogging) {
-          logger.debug('API Response', {
-            requestId,
-            status: response.status,
-            statusText: response.statusText,
-            url: response.config.url,
-            duration: duration ? `${duration}ms` : undefined,
-            contentType: response.headers['content-type'],
-            dataPreview: this.truncateBody(response.data),
-          });
-        } else {
-          logger.debug('Penpot API response', {
-            status: response.status,
-            url: response.config.url,
-            duration: duration ? `${duration}ms` : undefined,
+        // Always log responses with status and timing
+        const statusEmoji = response.status >= 200 && response.status < 300 ? '✅' : '⚠️';
+        logger.api('info', `API RESPONSE #${requestId} ${statusEmoji}`, {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.config.url,
+          duration: duration ? `${duration}ms` : undefined,
+        });
+
+        if (this.config.verboseLogging && response.data) {
+          logger.api('debug', 'Response data preview', {
+            preview: this.truncateBody(response.data, 500),
           });
         }
         return response;
@@ -167,7 +173,7 @@ export abstract class BaseAPIClient {
     const status = error.response?.status;
     const data = error.response?.data as Record<string, unknown> | undefined;
 
-    logger.error('Penpot API error', {
+    logger.api('error', 'Penpot API error', {
       status,
       url: error.config?.url,
       message: data?.['message'] || error.message,
@@ -187,7 +193,7 @@ export abstract class BaseAPIClient {
         (error.config as AxiosRequestConfig & { __retryCount?: number })?.__retryCount ?? 0;
 
       if (retryCount < (this.config.retryAttempts ?? 3)) {
-        logger.info('Authentication failed, attempting re-login');
+        logger.auth('info', 'Authentication failed, attempting re-login');
         await this.authenticate();
 
         if (error.config) {
@@ -217,75 +223,19 @@ export abstract class BaseAPIClient {
   }
 
   /**
-   * Authenticate with Penpot using username/password
+   * Authenticate with Penpot using the shared session manager
    */
   async authenticate(): Promise<void> {
-    const url = `${this.config.baseURL}/rpc/command/login-with-password`;
-
-    const payload = {
-      '~:email': this.config.username,
-      '~:password': this.config.password,
-    };
-
-    logger.debug('Authenticating with Penpot');
-
-    try {
-      const response = await axios.post(url, payload, {
-        headers: {
-          'Content-Type': 'application/transit+json',
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        },
-        withCredentials: true,
-      });
-
-      // Extract auth token from cookies
-      const setCookie = response.headers['set-cookie'];
-      if (setCookie) {
-        for (const cookie of setCookie) {
-          if (cookie.includes('auth-token=')) {
-            const match = cookie.match(/auth-token=([^;]+)/);
-            if (match) {
-              this.authToken = match[1];
-              this.client.defaults.headers['Cookie'] = `auth-token=${this.authToken}`;
-              logger.info('Authentication successful');
-            }
-          }
-        }
-      }
-
-      // Extract profile ID from response
-      const data = response.data;
-      if (Array.isArray(data)) {
-        // Transit+JSON array format
-        for (let i = 1; i < data.length - 1; i += 2) {
-          if (data[i] === '~:id') {
-            let profileId = data[i + 1];
-            if (typeof profileId === 'string' && profileId.startsWith('~u')) {
-              profileId = profileId.slice(2);
-            }
-            this.profileId = profileId;
-            logger.debug('Profile ID extracted', { profileId });
-            break;
-          }
-        }
-      }
-
-      if (!this.authToken) {
-        throw new Error('Auth token not found in response');
-      }
-    } catch (error) {
-      logger.error('Authentication failed', error);
-      throw error;
-    }
+    const token = await this.authSession.getAuthToken();
+    this.client.defaults.headers['Cookie'] = `auth-token=${token}`;
   }
 
   /**
    * Ensure authenticated before making requests
    */
   protected async ensureAuthenticated(): Promise<void> {
-    if (!this.authToken) {
-      await this.authenticate();
-    }
+    const token = await this.authSession.getAuthToken();
+    this.client.defaults.headers['Cookie'] = `auth-token=${token}`;
   }
 
   /**
@@ -464,13 +414,27 @@ export abstract class BaseAPIClient {
    * Get auth token for export operations
    */
   getAuthToken(): string | null {
-    return this.authToken;
+    return this.authSession.isAuthenticated() ? 'available' : null;
+  }
+
+  /**
+   * Get auth token string for requests
+   */
+  async getAuthTokenString(): Promise<string> {
+    return this.authSession.getAuthToken();
   }
 
   /**
    * Get profile ID for export operations
    */
-  getProfileId(): string | null {
-    return this.profileId;
+  async getProfileId(): Promise<string | null> {
+    return this.authSession.getProfileId();
+  }
+
+  /**
+   * Get the shared auth session manager
+   */
+  getAuthSession(): AuthSessionManager {
+    return this.authSession;
   }
 }

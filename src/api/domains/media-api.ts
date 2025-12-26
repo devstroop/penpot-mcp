@@ -25,7 +25,7 @@ export class MediaAPIClient extends BaseAPIClient {
         '~:name': name || this.extractFilename(url) || 'image',
       };
 
-      logger.debug('Uploading media from URL', { fileId, url, name });
+      logger.file('debug', 'Uploading media from URL', { fileId, url, name });
 
       const response = await this.postTransit<unknown>(
         '/rpc/command/create-file-media-object-from-url',
@@ -45,7 +45,7 @@ export class MediaAPIClient extends BaseAPIClient {
         `Image uploaded from URL: ${url}`
       );
     } catch (error) {
-      logger.error('Failed to upload media from URL', { fileId, url, error });
+      logger.file('error', 'Failed to upload media from URL', { fileId, url, error });
       return ErrorHandler.handle(error, 'uploadFromUrl');
     }
   }
@@ -72,7 +72,7 @@ export class MediaAPIClient extends BaseAPIClient {
         contentType: mimeType,
       });
 
-      logger.debug('Uploading media file', { fileId, filename, size: fileBuffer.length });
+      logger.file('debug', 'Uploading media file', { fileId, filename, size: fileBuffer.length });
 
       const response = await axios.post(
         `${this.config.baseURL}/rpc/command/upload-file-media-object`,
@@ -98,7 +98,7 @@ export class MediaAPIClient extends BaseAPIClient {
         `Image file uploaded: ${filename}`
       );
     } catch (error) {
-      logger.error('Failed to upload media file', { fileId, filename, error });
+      logger.file('error', 'Failed to upload media file', { fileId, filename, error });
       return ErrorHandler.handle(error, 'uploadFile');
     }
   }
@@ -119,7 +119,7 @@ export class MediaAPIClient extends BaseAPIClient {
 
       return this.uploadFile(fileId, buffer, filename, mimeType);
     } catch (error) {
-      logger.error('Failed to upload from base64', { fileId, filename, error });
+      logger.file('error', 'Failed to upload from base64', { fileId, filename, error });
       return ErrorHandler.handle(error, 'uploadFromBase64');
     }
   }
@@ -147,7 +147,7 @@ export class MediaAPIClient extends BaseAPIClient {
         `Found ${mediaList.length} media object(s)`
       );
     } catch (error) {
-      logger.error('Failed to list media', { fileId, error });
+      logger.file('error', 'Failed to list media', { fileId, error });
       return ErrorHandler.handle(error, 'listMedia');
     }
   }
@@ -171,7 +171,7 @@ export class MediaAPIClient extends BaseAPIClient {
         `Media object deleted: ${mediaId}`
       );
     } catch (error) {
-      logger.error('Failed to delete media', { fileId, mediaId, error });
+      logger.file('error', 'Failed to delete media', { fileId, mediaId, error });
       return ErrorHandler.handle(error, 'deleteMedia');
     }
   }

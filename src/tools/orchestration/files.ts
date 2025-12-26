@@ -17,7 +17,14 @@ export class FilesTool {
     const { action } = params;
     const client = this.clientFactory.createClient();
 
-    logger.debug('FilesTool executing', { action, params });
+    logger.info('📁 FILES TOOL: Executing', {
+      action,
+      fileId: params.fileId,
+      pageId: params.pageId,
+      objectId: params.objectId,
+      ...(params.content && { content: params.content }),
+      ...(params.operations && { operationCount: params.operations.length }),
+    });
 
     switch (action) {
       case 'get':

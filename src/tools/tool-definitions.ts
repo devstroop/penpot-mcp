@@ -902,7 +902,7 @@ Actions:
     // ==================== Analyze Tool ====================
     {
       name: 'analyze',
-      description: `Analyze Penpot designs for insights and optimization.
+      description: `Analyze Penpot designs for insights, quality issues, and optimization.
 
 Actions:
 - file_structure: Analyze file composition and complexity
@@ -912,7 +912,22 @@ Actions:
 - components: Analyze component usage and coverage
 - duplicates: Find duplicate styles or components
 - unused: Find unused tokens or components
-- compare: Compare two files for differences`,
+- compare: Compare two files for differences
+
+**Design Quality Analysis:**
+- overlaps: Detect overlapping/duplicate elements (bounding box)
+- text_overlaps: Detect overlapping text elements specifically
+- emojis: Detect emoji characters in text elements
+- truncation: Detect truncated/clipped text
+- spacing: Analyze spacing consistency between elements
+- redundancy: Detect duplicate/similar content
+- hierarchy: Analyze visual hierarchy issues (font sizes, prominence)
+- quality: Comprehensive quality check (all checks, returns grade A-F)
+- fix_overlaps: Automatically fix overlapping elements (hide/delete)
+- fix_emojis: Automatically remove emoji characters from text
+- fix_all: Fix all detected quality issues at once
+
+Use 'quality' action for a full design audit with score and recommendations.`,
       inputSchema: {
         type: 'object',
         properties: {
@@ -927,6 +942,17 @@ Actions:
               'duplicates',
               'unused',
               'compare',
+              'overlaps',
+              'text_overlaps',
+              'emojis',
+              'truncation',
+              'spacing',
+              'redundancy',
+              'hierarchy',
+              'quality',
+              'fix_overlaps',
+              'fix_emojis',
+              'fix_all',
             ],
             description: 'Action to perform',
           },
@@ -937,6 +963,10 @@ Actions:
           pageId: {
             type: 'string',
             description: 'Page ID (to narrow analysis)',
+          },
+          frameId: {
+            type: 'string',
+            description: 'Frame ID (to analyze a specific screen/artboard)',
           },
           compareFileId: {
             type: 'string',
@@ -949,8 +979,46 @@ Actions:
               includeTokens: { type: 'boolean' },
               minContrastRatio: { type: 'number' },
               minFontSize: { type: 'number' },
+              overlapThreshold: {
+                type: 'number',
+                description: 'Percentage overlap to trigger detection (default: 50)',
+              },
+              positionTolerance: {
+                type: 'number',
+                description: 'Pixels tolerance for same position detection (default: 5)',
+              },
+              textOverlapTolerance: {
+                type: 'number',
+                description: 'Pixels for text-specific overlap detection (default: 2)',
+              },
+              replaceEmojis: {
+                type: 'boolean',
+                description: 'Include replacement suggestions for emojis',
+              },
+              expectedSpacing: {
+                type: 'number',
+                description: 'Expected spacing between elements in pixels',
+              },
+              spacingTolerance: {
+                type: 'number',
+                description: 'Tolerance for spacing variance (default: 4px)',
+              },
+              similarityThreshold: {
+                type: 'number',
+                description: 'Text similarity percentage for redundancy detection (default: 80)',
+              },
+              fixStrategy: {
+                type: 'string',
+                enum: ['hide', 'delete', 'move'],
+                description: 'Strategy for fixing overlaps (default: hide)',
+              },
             },
             description: 'Analysis options',
+          },
+          issueIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Specific issue IDs to fix (for fix_* actions)',
           },
         },
         required: ['action', 'fileId'],

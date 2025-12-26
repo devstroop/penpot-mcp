@@ -6,27 +6,39 @@ dotenv.config();
 
 /**
  * Environment variable schema with validation and defaults
+ * Supports two authentication modes:
+ * 1. Access Token (preferred for cloud/social login) - set PENPOT_ACCESS_TOKEN
+ * 2. Username/Password (for self-hosted or password accounts) - set PENPOT_USERNAME and PENPOT_PASSWORD
  */
-const envSchema = z.object({
-  // Required credentials
-  PENPOT_USERNAME: z.string().email('PENPOT_USERNAME must be a valid email address'),
-  PENPOT_PASSWORD: z.string().min(1, 'PENPOT_PASSWORD is required'),
+const envSchema = z
+  .object({
+    // Access token authentication (preferred)
+    PENPOT_ACCESS_TOKEN: z.string().min(1).optional(),
 
-  // Optional with defaults
-  PENPOT_API_URL: z.string().url('PENPOT_API_URL must be a valid URL').default(DEFAULTS.API_URL),
-  PENPOT_PROJECT_ID: z.string().uuid('PENPOT_PROJECT_ID must be a valid UUID').optional(),
+    // Username/password authentication (fallback)
+    PENPOT_USERNAME: z.string().email('PENPOT_USERNAME must be a valid email address').optional(),
+    PENPOT_PASSWORD: z.string().min(1).optional(),
 
-  // Server config
-  LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default(DEFAULTS.LOG_LEVEL),
-  PORT: z.coerce.number().min(1).max(65535).default(DEFAULTS.PORT),
-});
+    // Optional with defaults
+    PENPOT_API_URL: z.string().url('PENPOT_API_URL must be a valid URL').default(DEFAULTS.API_URL),
+    PENPOT_PROJECT_ID: z.string().uuid('PENPOT_PROJECT_ID must be a valid UUID').optional(),
+
+    // Server config
+    LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default(DEFAULTS.LOG_LEVEL),
+    PORT: z.coerce.number().min(1).max(65535).default(DEFAULTS.PORT),
+  })
+  .refine((data) => data.PENPOT_ACCESS_TOKEN || (data.PENPOT_USERNAME && data.PENPOT_PASSWORD), {
+    message:
+      'Either PENPOT_ACCESS_TOKEN or both PENPOT_USERNAME and PENPOT_PASSWORD must be provided',
+  });
 
 // Type inferred from schema (exported for potential future use)
 export type EnvConfig = z.infer<typeof envSchema>;
 
 export interface PenpotConfig {
-  username: string;
-  password: string;
+  accessToken?: string;
+  username?: string;
+  password?: string;
   baseUrl: string;
   defaultProjectId?: string;
 }
@@ -44,8 +56,9 @@ export class ConfigManager {
   constructor() {
     // Initialize with raw env values - validation happens in validate()
     this.config = {
-      username: process.env['PENPOT_USERNAME'] || '',
-      password: process.env['PENPOT_PASSWORD'] || '',
+      accessToken: process.env['PENPOT_ACCESS_TOKEN'],
+      username: process.env['PENPOT_USERNAME'],
+      password: process.env['PENPOT_PASSWORD'],
       baseUrl: process.env['PENPOT_API_URL'] || DEFAULTS.API_URL,
       defaultProjectId: process.env['PENPOT_PROJECT_ID'],
     };
@@ -77,6 +90,7 @@ export class ConfigManager {
     // Update config with validated/transformed values
     const env = result.data;
     this.config = {
+      accessToken: env.PENPOT_ACCESS_TOKEN,
       username: env.PENPOT_USERNAME,
       password: env.PENPOT_PASSWORD,
       baseUrl: env.PENPOT_API_URL,
@@ -89,6 +103,13 @@ export class ConfigManager {
     };
 
     this.validated = true;
+  }
+
+  /**
+   * Check if using access token authentication
+   */
+  isAccessTokenAuth(): boolean {
+    return !!this.config.accessToken;
   }
 
   get(): PenpotConfig {

@@ -7,7 +7,17 @@ export class ErrorHandler {
    * Handle errors and convert to MCP response format
    */
   static handle(error: unknown, context: string): MCPResponse {
-    logger.error(`Error in ${context}`, error);
+    logger.api('error', `Error in ${context}`, {
+      context,
+      error:
+        error instanceof Error
+          ? {
+              name: error.name,
+              message: error.message,
+              stack: error.stack?.split('\n').slice(0, 3).join('\n'),
+            }
+          : error,
+    });
 
     if (error instanceof AxiosError) {
       return this.handleAxiosError(error, context);
@@ -50,6 +60,12 @@ export class ErrorHandler {
       default:
         message = `Request failed: ${error.message}`;
     }
+
+    logger.api('warn', `HTTP ${status || 'error'} in ${context}`, {
+      status,
+      message,
+      url: error.config?.url,
+    });
 
     return ResponseFormatter.formatError(message, {
       status,

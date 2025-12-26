@@ -61,6 +61,13 @@
 
 ---
 
+### ISSUE-022: Design Quality Analysis (Overlaps, Emojis) ✅ NEW
+**Status:** ✅ IMPLEMENTED  
+**Impact:** Agent could not automatically detect and fix design quality issues like overlapping elements or emoji characters in text  
+**Resolution:** Added comprehensive quality analysis to the `analyze` tool - see COMPLETED ISSUES section
+
+---
+
 ## 🟡 MEDIUM PRIORITY ISSUES
 
 ### ISSUE-009: Layer Ordering (Z-Index)
@@ -171,12 +178,13 @@
 | **Fonts** | ✅ | ✅ | N/A | ✅ | Upload, list, delete |
 | **Exports** | ✅ | N/A | N/A | N/A | Preview for AI |
 | **SVG Import** | N/A | ✅ | N/A | N/A | Paths, shapes |
-| **Share Links** | ✅ | ✅ | N/A | ✅ | **NEW** - Public/team/auth |
-| **Webhooks** | ✅ | ✅ | ✅ | ✅ | **NEW** - Full CRUD |
-| **Templates** | ✅ | ✅ | N/A | N/A | **NEW** - List & clone |
-| **Trash** | ✅ | N/A | N/A | ✅ | **NEW** - Restore/delete |
-| **Access Tokens** | ✅ | ✅ | N/A | ✅ | **NEW** - Programmatic API |
+| **Share Links** | ✅ | ✅ | N/A | ✅ | Public/team/auth |
+| **Webhooks** | ✅ | ✅ | ✅ | ✅ | Full CRUD |
+| **Templates** | ✅ | ✅ | N/A | N/A | List & clone |
+| **Trash** | ✅ | N/A | N/A | ✅ | Restore/delete |
+| **Access Tokens** | ✅ | ✅ | N/A | ✅ | Programmatic API |
 | **Comments** | ⚠️ | ⚠️ | ❌ | ❌ | Limited |
+| **Quality Analysis** | ✅ | N/A | ✅ | N/A | **NEW** - Overlaps, emojis, auto-fix |
 
 ---
 
@@ -194,13 +202,16 @@
 7. ~~**ISSUE-010**: Grouping~~ ✅
 8. ~~**ISSUE-011**: Copy/duplicate~~ ✅
 
-### Phase 3: Advanced Features (Next)
+### ✅ Phase 3: Advanced Features - COMPLETED
 9. ~~**ISSUE-002**: Component instantiation~~ ✅
 10. ~~**ISSUE-003**: Visual preview~~ ✅
 11. ~~**ISSUE-007**: SVG import~~ ✅
 12. ~~**ISSUE-013**: Constraints/auto-layout~~ ✅
 13. ~~**ISSUE-014**: Font management~~ ✅
 14. ~~**ISSUE-021**: Gradients~~ ✅
+
+### ✅ Phase 4: Quality & Automation - COMPLETED
+15. ~~**ISSUE-022**: Design quality analysis~~ ✅
 
 ---
 
@@ -524,6 +535,45 @@ await this.submitChanges(fileId, changes);
 - Token masking for security (shows only last 4 characters)
 - Optional expiration date support
 - Full integration with tool registry and schema validation
+
+### ISSUE-022: Design Quality Analysis (Overlaps, Emojis) ✅
+**Status:** ✅ IMPLEMENTED (December 26, 2024)  
+**Implementation:**
+- Extended `analyze` tool with new quality analysis actions
+- **New Actions:**
+  - `overlaps`: Detect overlapping/duplicate elements at same positions
+  - `emojis`: Detect emoji characters in text elements
+  - `quality`: Comprehensive quality check (overlaps + emojis + accessibility)
+  - `fix_overlaps`: Automatically fix overlapping elements (hide/delete duplicates)
+  - `fix_emojis`: Automatically remove emoji characters from text
+  - `fix_all`: Fix all detected quality issues at once
+- **Overlap Detection Features:**
+  - Detects elements at same position (configurable tolerance)
+  - Calculates bounding box overlap percentage
+  - Groups issues by parent frame for better context
+  - Configurable overlap threshold (default: 50%)
+  - Position tolerance (default: 5px)
+- **Emoji Detection Features:**
+  - Comprehensive Unicode emoji regex pattern
+  - Built-in emoji-to-text replacement dictionary (👤→User, 📍→Location, etc.)
+  - Suggested text replacements for common emojis
+  - Scans all text elements including nested content
+- **Fix Capabilities:**
+  - `fix_overlaps`: Hides duplicate elements (configurable: hide/delete)
+  - `fix_emojis`: Removes emojis from text, applies replacements
+  - `fix_all`: Runs both fixes in parallel
+  - Can target specific issues via `issueIds` parameter
+- **Quality Score:**
+  - Provides 0-100 quality score based on issues found
+  - Aggregated summary across all quality dimensions
+  - Actionable recommendations for improvements
+- **New Schema Options:**
+  - `overlapThreshold`: Min overlap % to flag (default: 50)
+  - `positionTolerance`: Pixels for "same position" (default: 5)
+  - `replaceEmojis`: Include replacement suggestions
+  - `fixStrategy`: How to fix overlaps (hide/delete/move)
+  - `issueIds`: Specific issues to fix
+  - `frameId`: Analyze specific screen/artboard
 
 ---
 

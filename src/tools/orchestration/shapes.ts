@@ -17,7 +17,17 @@ export class ShapesTool {
     const { action, fileId, pageId } = params;
     const client = this.clientFactory.createClient();
 
-    logger.debug('ShapesTool executing', { action, params });
+    logger.tool('info', `Executing shapes.${action}`, {
+      action,
+      fileId,
+      pageId,
+      ...(params.content && { content: params.content }),
+      ...(params.x !== undefined && { x: params.x }),
+      ...(params.y !== undefined && { y: params.y }),
+      ...(params.width !== undefined && { width: params.width }),
+      ...(params.height !== undefined && { height: params.height }),
+      ...(params.frameId && { frameId: params.frameId }),
+    });
 
     if (!fileId) {
       return ResponseFormatter.formatError('fileId is required');
